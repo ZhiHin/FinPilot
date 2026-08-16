@@ -1,0 +1,58 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Map semantic tokens into Tailwind v4 utilities (bg-page, text-ink, border-hairline, …). */
+@theme inline {
+  --color-page: var(--surface-page);
+  --color-card: var(--surface-card);
+  --color-raised: var(--surface-raised);
+  --color-sunken: var(--surface-sunken);
+  --color-hairline: var(--border-hairline);
+  --color-strongline: var(--border-strong);
+
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-muted: var(--text-muted);
+  --color-on-accent: var(--text-on-accent);
+
+  --color-accent: var(--accent-primary);
+  --color-accent-hover: var(--accent-primary-hover);
+  --color-accent-soft: var(--accent-primary-soft);
+
+  --color-positive: var(--status-positive);
+  --color-positive-soft: var(--status-positive-soft);
+  --color-attention: var(--status-attention);
+  --color-attention-soft: var(--status-attention-soft);
+  --color-risk: var(--status-risk);
+  --color-risk-soft: var(--status-risk-soft);
+  --color-info: var(--status-info);
+  --color-info-soft: var(--status-info-soft);
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-chip: 999px;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+
+  --shadow-raised: var(--shadow-raised);
+}
+
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Financial figures: tabular numerals, always (design doc §5). */
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Always-visible focus ring token (design doc §6). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

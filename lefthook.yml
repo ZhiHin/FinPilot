@@ -1,0 +1,12 @@
+# Pre-commit quality gates. Bypass only with --no-verify in genuine emergencies.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: eslint
+      glob: "*.{ts,tsx,mjs}"
+      run: npx eslint --no-warn-ignored {staged_files}
+    - name: prettier
+      glob: "*.{ts,tsx,mjs,css,json,yml,yaml}"
+      run: npx prettier --check {staged_files}
+    - name: typecheck
+      run: npm run typecheck

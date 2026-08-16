@@ -1,0 +1,16 @@
+# Optional: PostgreSQL for machines with Docker. The default dev flow uses the
+# project-managed embedded PostgreSQL instead (`npm run db:start`) — see README.
+services:
+  db:
+    image: postgres:17
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: finpilot
+      POSTGRES_PASSWORD: finpilot
+      POSTGRES_DB: finpilot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

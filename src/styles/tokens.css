@@ -1,0 +1,126 @@
+/**
+ * FinPilot design tokens (Phase 0 design-system doc §3–6).
+ * Semantic layer only — components consume these; raw hex lives here and nowhere else.
+ * Themes: light on bare :root; dark under prefers-color-scheme (system default)
+ * guarded against an explicit light choice; explicit dark via [data-theme="dark"].
+ */
+
+:root {
+  /* Canvas & surfaces */
+  --surface-page: #f7f6f3;
+  --surface-card: #fdfdfc;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f0ec;
+  --border-hairline: rgba(23, 33, 53, 0.1);
+  --border-strong: rgba(23, 33, 53, 0.22);
+
+  /* Text (muted verified ≥4.5:1 on page and card surfaces) */
+  --text-primary: #172135;
+  --text-secondary: #4a5468;
+  --text-muted: #626c82;
+  --text-on-accent: #ffffff;
+
+  /* Brand & interaction */
+  --accent-primary: #2e4e85;
+  --accent-primary-hover: #263f6c;
+  --accent-primary-soft: #e9eef7;
+  --focus-ring: #2e4e85;
+
+  /* Semantic status (always paired with icon + label, never color alone) */
+  --status-positive: #0e7a4d;
+  --status-positive-soft: #e7f4ee;
+  --status-attention: #9a6208;
+  --status-attention-soft: #fbf1de;
+  --status-risk: #b93438;
+  --status-risk-soft: #f9e9e9;
+  --status-info: #2e4e85;
+  --status-info-soft: #e9eef7;
+
+  /* Elevation */
+  --shadow-raised: 0 8px 24px rgba(15, 18, 25, 0.1);
+
+  /* Radii */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-chip: 999px;
+}
+
+/* Dark palette — selected steps, not an inversion (design doc §3). */
+[data-theme="dark"] {
+  --surface-page: #0f1219;
+  --surface-card: #1a1e29;
+  --surface-raised: #232838;
+  --surface-sunken: #0b0e14;
+  --border-hairline: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --text-primary: #f2f4f8;
+  --text-secondary: #b7becd;
+  --text-muted: #8a92a4;
+  /* Dark ink on the light-blue dark-mode accent (white would be ~2.5:1). */
+  --text-on-accent: #0f1219;
+
+  --accent-primary: #7fa3e0;
+  --accent-primary-hover: #94b3e8;
+  --accent-primary-soft: #243350;
+  --focus-ring: #7fa3e0;
+
+  --status-positive: #4cc38a;
+  --status-positive-soft: #143627;
+  --status-attention: #e8b34b;
+  --status-attention-soft: #3a2d12;
+  --status-risk: #e5787b;
+  --status-risk-soft: #3d1a1b;
+  --status-info: #7fa3e0;
+  --status-info-soft: #243350;
+
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
+}
+
+/* System dark, unless the user explicitly chose light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --surface-page: #0f1219;
+    --surface-card: #1a1e29;
+    --surface-raised: #232838;
+    --surface-sunken: #0b0e14;
+    --border-hairline: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.22);
+
+    --text-primary: #f2f4f8;
+    --text-secondary: #b7becd;
+    --text-muted: #8a92a4;
+    --text-on-accent: #0f1219;
+
+    --accent-primary: #7fa3e0;
+    --accent-primary-hover: #94b3e8;
+    --accent-primary-soft: #243350;
+    --focus-ring: #7fa3e0;
+
+    --status-positive: #4cc38a;
+    --status-positive-soft: #143627;
+    --status-attention: #e8b34b;
+    --status-attention-soft: #3a2d12;
+    --status-risk: #e5787b;
+    --status-risk-soft: #3d1a1b;
+    --status-info: #7fa3e0;
+    --status-info-soft: #243350;
+
+    --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    color-scheme: dark;
+  }
+}
+
+/* Motion discipline: honor reduced motion everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

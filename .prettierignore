@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+blob-report
+.pgdata*
+.dev-mail*
+package-lock.json
+src/server/db/migrations
+docs
+CLAUDE.md
+AGENTS.md
+README.md
