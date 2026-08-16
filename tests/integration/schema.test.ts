@@ -16,20 +16,24 @@ const U1 = "018f0000-0000-7000-8000-000000000001";
 const U2 = "018f0000-0000-7000-8000-000000000002";
 
 describe("Phase 1 schema", () => {
-  test("migrations create exactly the five approved tables", async () => {
+  test("the five Phase 1 identity/security tables exist", async () => {
+    // The exhaustive whole-schema assertion lives in schema-ledger.test.ts and
+    // grows with each phase (ADR-017 incremental migrations).
     const { rows } = await db.pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
        where table_schema = 'public' and table_type = 'BASE TABLE'
        order by table_name`,
     );
-    const tables = rows.map((r) => r.table_name).filter((n) => !n.startsWith("__drizzle"));
-    expect(tables).toEqual([
+    const tables = rows.map((r) => r.table_name);
+    for (const required of [
       "audit_logs",
       "password_reset_tokens",
       "sessions",
       "user_preferences",
       "users",
-    ]);
+    ]) {
+      expect(tables).toContain(required);
+    }
   });
 
   test("email uniqueness is case-insensitive (citext)", async () => {

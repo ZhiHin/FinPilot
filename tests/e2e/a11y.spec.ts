@@ -59,5 +59,33 @@ test.describe("accessibility (axe)", () => {
       await page.goto("/budget");
       await expectNoSeriousViolations(page, "/budget placeholder");
     });
+
+    test("accounts", async ({ page }) => {
+      await page.goto("/accounts");
+      await expectNoSeriousViolations(page, "/accounts");
+    });
+
+    test("categories settings", async ({ page }) => {
+      await page.goto("/settings/categories");
+      await expectNoSeriousViolations(page, "/settings/categories");
+    });
+  });
+
+  test.describe("demo-data screens", () => {
+    test.beforeEach(async ({ page }) => {
+      await signIn(page, "aisyah.demo@finpilot.test", "demo-aisyah-2026");
+    });
+
+    test("transactions workspace with data", async ({ page }) => {
+      await page.goto("/transactions");
+      await expectNoSeriousViolations(page, "/transactions (demo)");
+    });
+
+    test("account detail with data", async ({ page }) => {
+      await page.goto("/accounts");
+      await page.getByText("Maybank current").first().click();
+      await page.getByText("Reconcile against a statement").waitFor();
+      await expectNoSeriousViolations(page, "/accounts/[id] (demo)");
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt } from "drizzle-orm";
 
 import type { Db } from "../client";
 import { auditLogs } from "../schema";
@@ -22,6 +22,28 @@ export interface AuditEvent {
 export const auditRepo = {
   async record(db: Db, event: AuditEvent): Promise<void> {
     await db.insert(auditLogs).values(event);
+  },
+
+  /** Change history for one entity, scoped to its owner (drawer "History" section). */
+  async listForEntity(
+    db: Db,
+    userId: string,
+    entityType: string,
+    entityId: string,
+    limit = 20,
+  ): Promise<AuditRow[]> {
+    return db
+      .select()
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.userId, userId),
+          eq(auditLogs.entityType, entityType),
+          eq(auditLogs.entityId, entityId),
+        ),
+      )
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   },
 
   /**

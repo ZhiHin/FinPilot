@@ -29,6 +29,27 @@
       "when": 1786885483313,
       "tag": "0003_users_display_name",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786889436817,
+      "tag": "0004_trgm_extension",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786889439949,
+      "tag": "0005_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786889443020,
+      "tag": "0006_ledger_triggers",
+      "breakpoints": true
     }
   ]
 }

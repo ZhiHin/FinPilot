@@ -32,6 +32,8 @@ export async function seedTestUsers(db: Db): Promise<void> {
     await preferencesRepo.createDefaults(db, fixture.id, {
       onboardingState: { completed: true, currentStep: 5 },
     });
+    const { categoriesService } = await import("../../services/categories");
+    await categoriesService.ensureDefaults(db, fixture.id);
     await auditRepo.record(db, {
       id: uuidv7(),
       userId: fixture.id,

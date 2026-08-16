@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { parseAmountToMinor } from "@/lib/money";
 import { err, type Result } from "@/lib/result";
@@ -43,7 +44,40 @@ export async function saveOnboardingLocaleAction(
   redirect("/onboarding?step=2");
 }
 
-/** Steps 2/3/5 are structural placeholders until their domains land — skipping is honest. */
+const incomePatternSchema = z.object({
+  paydayDay: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(28)
+    .or(z.literal("last").transform(() => "last" as const)),
+  weekendAdjust: z.boolean(),
+});
+
+/** Step 2: simple monthly payday pattern (powers payday cycles from Phase 5). */
+export async function saveOnboardingIncomeAction(
+  _prev: OnboardingFormState,
+  formData: FormData,
+): Promise<OnboardingFormState> {
+  const { user } = await requireUser();
+  const parsed = incomePatternSchema.safeParse({
+    paydayDay: formData.get("paydayDay"),
+    weekendAdjust: formData.get("weekendAdjust") === "on",
+  });
+  if (!parsed.success) return zodToErr(parsed.error);
+
+  await preferencesRepo.update(getDb(), user.id, {
+    incomePattern: {
+      frequency: "monthly",
+      day: parsed.data.paydayDay,
+      weekendAdjust: parsed.data.weekendAdjust,
+    },
+  });
+  await mergeOnboardingState(user.id, { currentStep: 3 });
+  redirect("/onboarding?step=3");
+}
+
+/** Steps 5 remains a structural placeholder until import lands — skipping is honest. */
 export async function skipToOnboardingStepAction(formData: FormData): Promise<void> {
   const { user } = await requireUser();
   const step = Number(formData.get("step"));

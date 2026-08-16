@@ -171,6 +171,9 @@ export function createAuthService(config: AuthServiceConfig) {
         await usersRepo.updateDisplayName(db, userId, input.displayName.trim());
       }
       await preferencesRepo.createDefaults(db, userId);
+      // Every user starts with the default Malaysian category template (Phase 2).
+      const { categoriesService } = await import("../services/categories");
+      await categoriesService.ensureDefaults(db, userId);
       await audit("auth.sign_up", ctx, { userId, subjectHash });
 
       const sessionToken = await startSession(userId, ctx);

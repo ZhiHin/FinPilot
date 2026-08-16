@@ -16,6 +16,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 
 import { createDb } from "../src/server/db/client";
+import { seedDemoFinancial } from "../src/server/db/seeds/demo-financial";
 import { seedTestUsers } from "../src/server/db/seeds/test-users";
 
 const DATA_DIR = path.resolve(".pgdata-e2e");
@@ -57,7 +58,9 @@ async function main() {
   }
 
   const pool = new pg.Pool({ connectionString: url, max: 3 });
-  await seedTestUsers(createDb(pool));
+  const db = createDb(pool);
+  await seedTestUsers(db);
+  await seedDemoFinancial(db);
   await pool.end();
 
   console.log(`[e2e-server] database ready on :${PORT}; starting next dev on :3100`);

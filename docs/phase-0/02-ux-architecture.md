@@ -85,6 +85,7 @@ route groups shown as `(group)`.
 | `/settings/security` | Sessions list/revoke, passkey placeholder | |
 | `/settings/notifications` | Alert thresholds, digest cadence, quiet hours | |
 | `/settings/privacy` | Privacy Mode, AI consent, per-feature AI data disclosure | |
+| `/settings/categories` | Category groups, categories, tags, merchants | *(Added in Phase 2 — classification management needed a home; settings keeps main nav uncluttered)* |
 | `/settings/data` | Export, retention, staged account deletion | |
 | `/journal` | Money Decision Journal | Reached from More/command menu, insight cards, and transaction drawer — not primary nav |
 

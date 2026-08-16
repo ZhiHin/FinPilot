@@ -13,9 +13,14 @@ import { formatMinor } from "@/lib/money";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
+import { AmountText } from "@/components/ui/amount-text";
+import { createAccountAction, type AccountFormState } from "@/features/accounts/actions";
+import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS } from "@/features/accounts/schemas";
+
 import {
   completeOnboardingAction,
   saveOnboardingBufferAction,
+  saveOnboardingIncomeAction,
   saveOnboardingLocaleAction,
   skipToOnboardingStepAction,
   type OnboardingFormState,
@@ -79,6 +84,14 @@ function errorsOf(state: OnboardingFormState): Record<string, string[]> {
   return state && !state.ok ? (state.error.fieldErrors ?? {}) : {};
 }
 
+export interface OnboardingAccountSummary {
+  id: string;
+  name: string;
+  type: string;
+  currency: string;
+  balanceMinor: number;
+}
+
 export function OnboardingFlow({
   step,
   locale,
@@ -86,6 +99,10 @@ export function OnboardingFlow({
   timezone,
   budgetStyle,
   safetyBufferMinor,
+  paydayDay,
+  weekendAdjust,
+  accounts,
+  today,
 }: {
   step: number;
   locale: string;
@@ -93,6 +110,10 @@ export function OnboardingFlow({
   timezone: string;
   budgetStyle: string | null;
   safetyBufferMinor: number;
+  paydayDay: number | "last" | null;
+  weekendAdjust: boolean;
+  accounts: OnboardingAccountSummary[];
+  today: string;
 }) {
   const [localeState, localeAction, localePending] = useActionState(
     saveOnboardingLocaleAction,
@@ -102,8 +123,19 @@ export function OnboardingFlow({
     saveOnboardingBufferAction,
     null,
   );
+  const [incomeState, incomeAction, incomePending] = useActionState(
+    saveOnboardingIncomeAction,
+    null,
+  );
+  const [accountState, accountAction, accountPending] = useActionState<AccountFormState, FormData>(
+    createAccountAction,
+    null,
+  );
   const localeErrors = errorsOf(localeState);
   const bufferErrors = errorsOf(bufferState);
+  const incomeErrors = errorsOf(incomeState);
+  const accountErrors =
+    accountState && !accountState.ok ? (accountState.error.fieldErrors ?? {}) : {};
 
   return (
     <Card>
@@ -143,15 +175,40 @@ export function OnboardingFlow({
 
         {step === 2 ? (
           <div className="flex flex-col gap-4">
-            <h1 className="text-[19px] font-semibold text-ink">When does money come in?</h1>
-            <p className="text-[13px] text-ink-secondary">
-              Your payday pattern powers safe-to-spend and payday-aware budget cycles.
-            </p>
-            <Banner variant="info">
-              Income patterns are captured with accounts in Phase 2 — this step activates then. You
-              can skip it now and nothing is lost.
-            </Banner>
-            <div className="mt-2 flex items-center justify-between gap-2">
+            {/* Skip lives outside this form — nested forms are dropped by browsers. */}
+            <form action={incomeAction} className="flex flex-col gap-4" noValidate>
+              <h1 className="text-[19px] font-semibold text-ink">When does money come in?</h1>
+              <p className="text-[13px] text-ink-secondary">
+                Your payday pattern powers safe-to-spend and payday-aware budget cycles from Phase 5
+                onward. A simple monthly pattern is enough for now.
+              </p>
+              <FormField label="Payday (day of month)" errors={incomeErrors.paydayDay}>
+                <Select
+                  name="paydayDay"
+                  defaultValue={paydayDay === null ? "25" : String(paydayDay)}
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                  <option value="last">Last day of the month</option>
+                </Select>
+              </FormField>
+              <label className="flex items-center gap-2 text-[13px] text-ink-secondary">
+                <input
+                  type="checkbox"
+                  name="weekendAdjust"
+                  defaultChecked={weekendAdjust}
+                  className="h-4 w-4 accent-[var(--accent-primary)]"
+                />
+                Salary moves earlier when payday lands on a weekend
+              </label>
+              <Button type="submit" disabled={incomePending} className="self-end">
+                {incomePending ? t("common.loading") : t("common.continue")}
+              </Button>
+            </form>
+            <div className="flex items-center justify-between gap-2">
               <Button asChild variant="ghost">
                 <Link href="/onboarding?step=1">{t("common.back")}</Link>
               </Button>
@@ -165,17 +222,70 @@ export function OnboardingFlow({
             <h1 className="text-[19px] font-semibold text-ink">Your accounts</h1>
             <p className="text-[13px] text-ink-secondary">
               Bank accounts, e-wallets, cards, and opening balances give FinPilot your real
-              position.
+              position. Add the ones you use — more can come later from the Accounts screen.
             </p>
-            <Banner variant="info">
-              Manual accounts arrive in Phase 2 (and statement import in Phase 3). This step
-              activates then.
-            </Banner>
+            {accounts.length > 0 ? (
+              <ul className="flex flex-col gap-1 rounded-card border border-hairline bg-page p-3">
+                {accounts.map((account) => (
+                  <li key={account.id} className="flex items-center justify-between text-[13px]">
+                    <span className="text-ink">{account.name}</span>
+                    <AmountText amountMinor={account.balanceMinor} currency={account.currency} />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {accountState?.ok ? (
+              <Banner variant="positive">{accountState.data.message}</Banner>
+            ) : null}
+            {accountState && !accountState.ok && !accountState.error.fieldErrors ? (
+              <Banner variant="risk">{accountState.error.message}</Banner>
+            ) : null}
+            <form
+              action={accountAction}
+              className="flex flex-col gap-3 rounded-card border border-hairline p-3"
+              noValidate
+            >
+              <input type="hidden" name="currency" value="MYR" />
+              <input type="hidden" name="openingBalanceDate" value={today} />
+              <input type="hidden" name="includeInNetWorth" value="on" />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Account name" errors={accountErrors.name}>
+                  <Input name="name" placeholder="e.g. Maybank" maxLength={80} required />
+                </FormField>
+                <FormField label="Type" errors={accountErrors.type}>
+                  <Select name="type" defaultValue="current">
+                    {ACCOUNT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {ACCOUNT_TYPE_LABELS[type]}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+              </div>
+              <FormField
+                label="Balance today (RM)"
+                help="Liabilities can start negative, e.g. -1,200"
+                errors={accountErrors.openingBalance}
+              >
+                <Input name="openingBalance" inputMode="decimal" defaultValue="0" className="num" />
+              </FormField>
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={accountPending}
+                className="self-start"
+              >
+                {accountPending ? t("common.loading") : "Add this account"}
+              </Button>
+            </form>
             <div className="mt-2 flex items-center justify-between gap-2">
               <Button asChild variant="ghost">
                 <Link href="/onboarding?step=2">{t("common.back")}</Link>
               </Button>
-              <SkipButton toStep={4} label={t("common.skipForNow")} />
+              <SkipButton
+                toStep={4}
+                label={accounts.length > 0 ? t("common.continue") : t("common.skipForNow")}
+              />
             </div>
           </div>
         ) : null}

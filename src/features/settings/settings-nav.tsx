@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 const ITEMS = [
   { href: "/settings/profile", label: "Profile" },
   { href: "/settings/preferences", label: "Preferences" },
+  { href: "/settings/categories", label: "Categories & tags" },
   { href: "/settings/security", label: "Security" },
   { href: "/settings/notifications", label: "Notifications" },
   { href: "/settings/privacy", label: "Privacy & AI" },

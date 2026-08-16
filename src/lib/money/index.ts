@@ -86,6 +86,17 @@ export function parseAmountToMinor(input: string, currency: string = "MYR"): num
   return negative ? -minor : minor;
 }
 
+/** Minor units → plain magnitude string for form inputs ("3250" → "32.50"). */
+export function minorToAmountInput(amountMinor: number, currency: string = "MYR"): string {
+  assertSafeMinor(amountMinor);
+  const exponent = exponentFor(currency);
+  const factor = 10 ** exponent;
+  const abs = Math.abs(amountMinor);
+  const major = (abs - (abs % factor)) / factor;
+  if (exponent === 0) return String(major);
+  return `${major}.${String(abs % factor).padStart(exponent, "0")}`;
+}
+
 /** Sums minor units, throwing if any input or the running total leaves the safe range. */
 export function sumMinor(values: readonly number[]): number {
   let total = 0;
