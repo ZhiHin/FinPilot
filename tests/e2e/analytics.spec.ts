@@ -26,7 +26,7 @@ test.describe("dashboard (overview)", () => {
 
   test("shows net position, period flows with comparisons, and data quality", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Where you stand today" })).toBeVisible();
-    await expect(page.getByText("Liquid").first()).toBeVisible();
+    await expect(page.getByText("Liquid", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Net position").first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "This period" })).toBeVisible();
     await expect(page.getByText("Income", { exact: true }).first()).toBeVisible();

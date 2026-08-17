@@ -120,7 +120,7 @@ export default async function TransactionsPage({
 
       <div className="flex flex-col gap-4">
         {/* Drill-down origin: a safe, same-app path back to the report. */}
-        {params.back && /^\/(analytics|overview|budget)(\?|$)/.test(params.back) ? (
+        {params.back && /^\/(analytics|overview|budget|insights)(\?|$)/.test(params.back) ? (
           <Banner variant="info">
             You’re viewing transactions filtered from a report.{" "}
             <Link href={params.back} className="font-semibold underline">
@@ -129,7 +129,9 @@ export default async function TransactionsPage({
                 ? "Analytics"
                 : params.back.startsWith("/budget")
                   ? "Budget"
-                  : "Overview"}
+                  : params.back.startsWith("/insights")
+                    ? "Insights"
+                    : "Overview"}
             </Link>
           </Banner>
         ) : null}

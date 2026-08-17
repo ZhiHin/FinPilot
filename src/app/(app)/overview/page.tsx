@@ -18,8 +18,12 @@ import { formatMinor } from "@/lib/money";
 import { PERIOD_OPTIONS, previousPeriod, resolvePeriod, shiftRangeMonthsBack } from "@/lib/periods";
 import { t } from "@/lib/i18n";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { ForecastBandChart } from "@/components/charts/forecast-band";
 import { HealthBadge } from "@/features/budgets/labels";
 import { TimeStatusBadge } from "@/features/goals/labels";
+import { SafeToSpendCard } from "@/features/intel/sts-card";
+import { intelService } from "@/server/services/intel";
 import { requireUser } from "@/server/auth/guard";
 import { getDb } from "@/server/db/client";
 import { preferencesRepo } from "@/server/db/repositories/preferences";
@@ -43,10 +47,14 @@ function unwrapOr<T>(result: { ok: true; data: T } | { ok: false }, fallback: T)
   return result.ok ? result.data : fallback;
 }
 
+function hasAccountsPrecheck(netPosition: Record<string, unknown>): boolean {
+  return Object.keys(netPosition).length > 0;
+}
+
 export default async function OverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; forecast?: string }>;
 }) {
   const { user } = await requireUser();
   const sp = await searchParams;
@@ -95,6 +103,20 @@ export default async function OverviewPage({
   // Phase 6: upcoming recurring bills (next 14 days) — read-only, no scan here.
   const upcoming = await recurringService.upcoming(db, user.id, { from: today, days: 14 });
   const upcomingDue = upcoming.due.slice(0, 5);
+
+  // Phase 7: Safe-to-Spend, cash-flow forecast, and the top insight.
+  const horizonDays = sp.forecast === "60" ? 60 : sp.forecast === "90" ? 90 : 30;
+  const stsRes = hasAccountsPrecheck(netPosition)
+    ? await intelService.safeToSpend(db, user.id, today)
+    : null;
+  const forecastRes = hasAccountsPrecheck(netPosition)
+    ? await intelService.cashFlowForecast(db, user.id, { horizonDays, today })
+    : null;
+  await intelService.generateInsightsIfStale(db, user.id, today);
+  const topInsight =
+    (await intelService.listInsights(db, user.id)).find(
+      (i) => i.type !== "budget_suggestion" && i.status !== "actioned",
+    ) ?? null;
 
   // Phase 5: compact budget snapshot (first active budget, current cycle).
   const activeBudget = budgetList.find((b) => b.isActive) ?? null;
@@ -190,6 +212,37 @@ export default async function OverviewPage({
           </Banner>
         ) : (
           <>
+            {/* ---- Phase 7: Safe-to-Spend + the top insight ---- */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {stsRes?.ok ? <SafeToSpendCard view={stsRes.data} /> : null}
+              {topInsight ? (
+                <Card>
+                  <CardContent className="flex flex-col gap-2">
+                    <p className="flex flex-wrap items-center gap-2">
+                      <span className="text-[13px] font-medium uppercase tracking-wide text-ink-muted">
+                        Top insight
+                      </span>
+                      {topInsight.severity === "risk" ? (
+                        <Badge variant="risk">Needs attention</Badge>
+                      ) : topInsight.severity === "attention" ? (
+                        <Badge variant="attention">Worth a look</Badge>
+                      ) : (
+                        <Badge variant="info">Info</Badge>
+                      )}
+                    </p>
+                    <p className="text-[15px] font-semibold text-ink">{topInsight.title}</p>
+                    <p className="text-[13px] text-ink-secondary">{topInsight.body}</p>
+                    <Link
+                      href="/insights"
+                      className="text-[13px] font-medium text-accent underline underline-offset-2"
+                    >
+                      See the evidence
+                    </Link>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+
             {/* ---- Net position (always current, per currency, never combined) ---- */}
             <section aria-labelledby="net-position-heading" className="flex flex-col gap-3">
               <h2 id="net-position-heading" className="text-[15px] font-semibold text-ink">
@@ -349,6 +402,91 @@ export default async function OverviewPage({
                 })
               )}
             </section>
+
+            {/* ---- Phase 7: projected balance with uncertainty band ---- */}
+            {forecastRes?.ok ? (
+              <ChartCard
+                title={`Projected balance · ${forecastRes.data.currency}`}
+                description={`Next ${horizonDays} days: recurring bills and income projected forward plus your typical non-recurring spending (transparent statistical method, three bands — never a black box).`}
+                chart={
+                  <ForecastBandChart
+                    data={forecastRes.data.series}
+                    currency={forecastRes.data.currency}
+                  />
+                }
+                table={
+                  <ChartDataTable
+                    caption={`Projected balance for the next ${horizonDays} days`}
+                    headers={["Date", "Conservative", "Expected", "Optimistic"]}
+                    rows={forecastRes.data.series
+                      .filter((_, index) => index % 7 === 6 || index === 0)
+                      .map((point) => [
+                        formatIsoDate(point.date, "en-MY"),
+                        formatMinor(point.conservativeMinor, forecastRes.data.currency),
+                        formatMinor(point.expectedMinor, forecastRes.data.currency),
+                        formatMinor(point.optimisticMinor, forecastRes.data.currency),
+                      ])}
+                  />
+                }
+                footer={
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
+                    <span className="text-ink-secondary">
+                      Lowest expected:{" "}
+                      <AmountText
+                        amountMinor={forecastRes.data.lowestExpected.balanceMinor}
+                        currency={forecastRes.data.currency}
+                      />{" "}
+                      on {formatIsoDate(forecastRes.data.lowestExpected.date, "en-MY")} ·
+                      conservative bottom{" "}
+                      <AmountText
+                        amountMinor={forecastRes.data.lowestConservative.balanceMinor}
+                        currency={forecastRes.data.currency}
+                      />
+                    </span>
+                    {/* Static children: keyed arrays inside client-component
+                        props drop their keys across the RSC boundary. */}
+                    <nav aria-label="Forecast horizon" className="flex gap-1">
+                      <Link
+                        href={sp.period ? `/overview?period=${sp.period}` : "/overview"}
+                        aria-current={horizonDays === 30 ? "page" : undefined}
+                        className={cn(
+                          "rounded-chip px-2.5 py-0.5",
+                          horizonDays === 30
+                            ? "bg-accent-soft font-medium text-accent"
+                            : "text-ink-secondary hover:bg-sunken",
+                        )}
+                      >
+                        30d
+                      </Link>
+                      <Link
+                        href={`/overview?${new URLSearchParams({ ...(sp.period ? { period: sp.period } : {}), forecast: "60" }).toString()}`}
+                        aria-current={horizonDays === 60 ? "page" : undefined}
+                        className={cn(
+                          "rounded-chip px-2.5 py-0.5",
+                          horizonDays === 60
+                            ? "bg-accent-soft font-medium text-accent"
+                            : "text-ink-secondary hover:bg-sunken",
+                        )}
+                      >
+                        60d
+                      </Link>
+                      <Link
+                        href={`/overview?${new URLSearchParams({ ...(sp.period ? { period: sp.period } : {}), forecast: "90" }).toString()}`}
+                        aria-current={horizonDays === 90 ? "page" : undefined}
+                        className={cn(
+                          "rounded-chip px-2.5 py-0.5",
+                          horizonDays === 90
+                            ? "bg-accent-soft font-medium text-accent"
+                            : "text-ink-secondary hover:bg-sunken",
+                        )}
+                      >
+                        90d
+                      </Link>
+                    </nav>
+                  </div>
+                }
+              />
+            ) : null}
 
             {/* ---- Spending detail ---- */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

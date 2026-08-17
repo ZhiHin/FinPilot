@@ -161,6 +161,9 @@ describe("deterministic detection on fixtures", () => {
     });
     expect(rent?.confidenceBp).toBeGreaterThanOrEqual(7000);
     expect(rent?.confidenceBp).toBeLessThanOrEqual(9500);
+    // Regression: even-count stable series must keep the 10% tolerance floor
+    // (bigint columns arrive as strings; a coercion bug once ballooned this).
+    expect(rent?.amountToleranceMinor).toBe(16000);
     // Next expected = last seen + 1 month (1st of this month → 1st of next).
     expect(rent?.nextExpectedOn).toBe("2026-09-01");
   });

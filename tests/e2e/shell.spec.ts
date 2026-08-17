@@ -26,10 +26,9 @@ test.describe("responsive application shell", () => {
   });
 
   test("placeholder destinations are honestly labeled with their phase", async ({ page }) => {
+    // Scenario Lab is the last remaining placeholder (Phase 9).
     await page.goto("/scenarios");
     await expect(page.getByText(/arrives in Phase 9/i)).toBeVisible();
-    await page.goto("/insights");
-    await expect(page.getByText(/arrives in Phase 8/i)).toBeVisible();
   });
 
   test("command palette opens with Ctrl+K and navigates", async ({ page }) => {

@@ -220,8 +220,11 @@ export const recurringService = {
     ).rows;
 
     // Group into series: merchant (or normalized description) + currency + direction.
+    // node-postgres returns bigint columns as strings — coerce at the boundary
+    // so downstream integer math never string-concatenates.
     const groups = new Map<string, SeriesTxn[]>();
-    for (const row of rows) {
+    for (const raw of rows) {
+      const row = { ...raw, amount: Number(raw.amount) };
       const base = row.merchant_id
         ? `merchant:${row.merchant_id}`
         : `desc:${normalizeSeriesKey(row.description)}`;

@@ -27,6 +27,8 @@ import { getDb } from "@/server/db/client";
 import { preferencesRepo } from "@/server/db/repositories/preferences";
 import { budgetsService, type AllocationReport } from "@/server/services/budgets";
 import { categoriesService } from "@/server/services/categories";
+import { intelService } from "@/server/services/intel";
+import { SuggestionActions } from "@/features/intel/insight-controls";
 
 export const metadata: Metadata = { title: t("nav.budget") };
 
@@ -183,6 +185,16 @@ export default async function BudgetPage({
     ...(sp.period ? { period: sp.period } : {}),
   }).toString()}`.replace(/\?$/, "");
 
+  // Deterministic budget suggestions for THIS cycle (Phase 7): freshened at
+  // most twice a day, applied only through the explicit Approve action.
+  await intelService.generateInsightsIfStale(db, user.id, today);
+  const suggestions = (
+    await intelService.listInsights(db, user.id, { type: "budget_suggestion" })
+  ).filter((insight) => {
+    const comparison = insight.comparison as { periodId?: string };
+    return comparison.periodId === report.period.id && insight.status !== "actioned";
+  });
+
   const groups = await categoriesService.listGroups(db, user.id);
   const categoryOptions: CategoryOption[] = groups
     .filter((group) => group.kind === "expense")
@@ -308,6 +320,52 @@ export default async function BudgetPage({
               plans exceed the expected income.
             </Banner>
           )
+        ) : null}
+
+        {/* Deterministic suggestions (UX §4.3) — explicit approval only. */}
+        {suggestions.length > 0 ? (
+          <Card>
+            <CardContent className="flex flex-col gap-3">
+              <h2 className="text-[15px] font-semibold text-ink">
+                Suggestions ({suggestions.length})
+              </h2>
+              <ul className="flex flex-col gap-3">
+                {suggestions.map((suggestion) => {
+                  const comparison = suggestion.comparison as {
+                    periodId: string;
+                    categoryId: string;
+                    suggestedMinor: number;
+                    allocationVersion: number;
+                  };
+                  const liveVersion =
+                    report.allocations.find((a) => a.categoryId === comparison.categoryId)
+                      ?.version ?? comparison.allocationVersion;
+                  return (
+                    <li
+                      key={suggestion.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-sunken p-3"
+                    >
+                      <div className="min-w-0 text-[13px]">
+                        <p className="font-medium text-ink">{suggestion.title}</p>
+                        <p className="text-ink-secondary">{suggestion.body}</p>
+                      </div>
+                      <SuggestionActions
+                        insightId={suggestion.id}
+                        periodId={comparison.periodId}
+                        categoryId={comparison.categoryId}
+                        suggestedMinor={comparison.suggestedMinor}
+                        expectedVersion={liveVersion}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="text-[11.5px] text-ink-muted">
+                Baseline comparisons computed from your own cycles — never AI, and nothing changes
+                unless you approve it.
+              </p>
+            </CardContent>
+          </Card>
         ) : null}
 
         {/* Summary */}
