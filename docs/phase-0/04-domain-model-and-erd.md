@@ -623,7 +623,7 @@ contribution with linked transfer, account deletion staging, purge.
   | 5 | `budgets`, `budget_periods`, `budget_allocations` (+ `btree_gist` for period exclusion), `savings_goals`, `goal_contributions` — *shipped (migrations 0008/0009) with ownership + linked-transfer-currency + contribution-floor triggers; `rollover_in_minor` is the one stored derivative, snapshotted once at period creation so history stays immutable* |
   | 6 | `recurring_patterns`, `subscriptions`, `notifications` — *shipped (migrations 0010/0011) with ownership triggers, detector-idempotency key (`inference_key` partial unique), and the notification dedup partial unique; deviation recorded: `confidence` stored as integer basis points (`confidence_bp`) per ADR-003 integer-math discipline, not numeric 0..1* |
   | 7 | `forecasts`, `insights`, `insight_evidence` (deterministic producers) — *shipped (migrations 0012/0013) with the inputs-hash cache unique index, insight dedup unique index, and evidence-ownership trigger; deterministic budget suggestions persist as `insights` rows (open type set) — `ai_suggestions` stays reserved for Phase 8; confidence stored as integer basis points per ADR-003* |
-  | 8 | `ai_suggestions`, `ai_feedback`, `ai_requests` |
+  | 8 | `ai_suggestions`, `ai_feedback`, `ai_requests` — *shipped (migrations 0014/0015) with the live-target partial-unique dedup index on `ai_suggestions`, the exactly-one-of check + ownership trigger on `ai_feedback`, and metadata-only `ai_requests` (no prompt/response bodies stored); confidence stored as integer basis points per ADR-003* |
   | 9 | `scenarios`, `scenario_events`, `journal_entries`, `journal_links` |
   | 10 | retention/purge helpers as needed; no new domain tables planned |
 

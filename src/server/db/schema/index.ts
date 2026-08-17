@@ -5,3 +5,4 @@ export * from "./ledger";
 export * from "./planning";
 export * from "./recurring";
 export * from "./intel";
+export * from "./ai";

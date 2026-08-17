@@ -46,6 +46,15 @@ migrate/seed as above.
 | `AUTH_SECRET` | yes | Server-side secret for keyed hashes (rate-limit subjects, IP hashes) |
 | `DEV_MAIL_DIR` | no | Where the dev mailer writes outgoing mail JSON (default `.dev-mail/`) |
 | `APP_BASE_URL` | no | Base URL used in emailed links (default `http://localhost:3000`) |
+| `AI_PROVIDER` | no | Generative-AI adapter: `stub` (default — deterministic, zero network), `anthropic`, or `stub-wrong` (evaluation fixture that fabricates numbers; must never surface) |
+| `ANTHROPIC_API_KEY` | with `anthropic` | API key for the Anthropic adapter |
+| `AI_MODEL` | no | Model override for the Anthropic adapter (default `claude-sonnet-5`) |
+| `AI_DISABLED` | no | `1` = kill switch: every AI call refuses at the gateway regardless of provider/consent |
+
+AI features (assistant, insight phrasing) additionally require per-user consent in
+Settings → Privacy & AI, and Privacy Mode always overrides everything: with it on, zero
+external AI calls are possible. The default `stub` provider makes no network calls at all, so
+a fresh checkout is fully functional — and CI runs entirely offline — without any AI key.
 
 There is no email provider yet: password-reset mails are written to `DEV_MAIL_DIR` as JSON files
 (the reset flow is otherwise fully real — single-use, expiring, hashed tokens).

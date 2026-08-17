@@ -5,7 +5,12 @@ import { useActionState } from "react";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 
-import { applySuggestionAction, dismissInsightAction, type IntelFormState } from "./actions";
+import {
+  applySuggestionAction,
+  dismissInsightAction,
+  insightFeedbackAction,
+  type IntelFormState,
+} from "./actions";
 
 export function DismissInsightButton({ insightId }: { insightId: string }) {
   const [state, formAction, pending] = useActionState<IntelFormState, FormData>(
@@ -73,5 +78,34 @@ export function SuggestionActions({
         </form>
       </div>
     </div>
+  );
+}
+
+export function InsightFeedback({ insightId }: { insightId: string }) {
+  const [state, formAction, pending] = useActionState<IntelFormState, FormData>(
+    insightFeedbackAction,
+    null,
+  );
+  if (state?.ok) {
+    return <span className="text-[12.5px] text-ink-muted">Thanks - feedback recorded.</span>;
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-[12.5px] text-ink-muted">
+      Was this useful?
+      <form action={formAction}>
+        <input type="hidden" name="insightId" value={insightId} />
+        <input type="hidden" name="verdict" value="helpful" />
+        <Button type="submit" variant="ghost" size="sm" disabled={pending}>
+          Yes
+        </Button>
+      </form>
+      <form action={formAction}>
+        <input type="hidden" name="insightId" value={insightId} />
+        <input type="hidden" name="verdict" value="not_helpful" />
+        <Button type="submit" variant="ghost" size="sm" disabled={pending}>
+          No
+        </Button>
+      </form>
+    </span>
   );
 }

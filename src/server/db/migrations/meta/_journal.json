@@ -99,6 +99,20 @@
                         "when":  1786965900123,
                         "tag":  "0013_intel_guards",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  14,
+                        "version":  "7",
+                        "when":  1786971322458,
+                        "tag":  "0014_ai",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  15,
+                        "version":  "7",
+                        "when":  1786971323458,
+                        "tag":  "0015_ai_guards",
+                        "breakpoints":  true
                     }
                 ]
 }

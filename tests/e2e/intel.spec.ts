@@ -80,7 +80,7 @@ test.describe("insights (demo data)", () => {
   });
 
   test("the canonical spend-change insight appears with full B3 anatomy", async ({ page }) => {
-    await expect(page.getByText(/zero AI calls/)).toBeVisible();
+    await expect(page.getByText(/deterministic arithmetic over your ledger/)).toBeVisible();
     const card = page
       .locator("li")
       .filter({ hasText: /Food delivery spending increased/ })

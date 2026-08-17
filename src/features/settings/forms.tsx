@@ -13,6 +13,7 @@ import { changePasswordAction, type AuthFormState } from "@/features/auth/action
 import { t } from "@/lib/i18n";
 
 import {
+  updateAiConsentAction,
   updateNotificationsAction,
   updatePreferencesAction,
   updatePrivacyAction,
@@ -155,10 +156,10 @@ export function PrivacyForm({ privacyMode }: { privacyMode: boolean }) {
         <div>
           <div className="text-[15px] font-medium text-ink">Privacy Mode</div>
           <p className="mt-1 text-[13px] text-ink-secondary">
-            When on, FinPilot never sends any of your data to a generative-AI provider. Every
-            deterministic feature — dashboards, budgets, rules, trends, forecasts, reports — keeps
-            working fully. (No AI features exist before Phase 8, so nothing is sent today either;
-            this setting is honored from the first AI feature onward.)
+            When on, FinPilot never sends any of your data to a generative-AI provider — the
+            assistant and AI phrasing switch off entirely, and this overrides AI consent. Every
+            deterministic feature — dashboards, budgets, rules, trends, forecasts, reports,
+            insights, safe-to-spend — keeps working fully.
           </p>
         </div>
         <Switch name="privacyMode" defaultChecked={privacyMode} aria-label="Privacy Mode" />
@@ -238,6 +239,38 @@ export function NotificationsForm({
           <option value="monthly">Monthly</option>
         </Select>
       </FormField>
+      <Button type="submit" disabled={pending} className="self-start">
+        {pending ? t("common.loading") : t("common.save")}
+      </Button>
+    </form>
+  );
+}
+
+export function AiConsentForm({
+  consented,
+  privacyMode,
+}: {
+  consented: boolean;
+  privacyMode: boolean;
+}) {
+  const [state, action, pending] = useActionState(updateAiConsentAction, null);
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <StateBanner state={state} />
+      <div className="flex items-start justify-between gap-4 rounded-card border border-hairline bg-card p-4">
+        <div>
+          <div className="text-[15px] font-medium text-ink">Generative AI consent</div>
+          <p className="mt-1 text-[13px] text-ink-secondary">
+            Separate, explicit, and revocable: allows insight phrasing and the assistant to send
+            minimized, pre-aggregated data to the configured provider. Every call is logged on the
+            AI activity page and every generated number is verified against deterministic math.
+            {privacyMode
+              ? " Privacy Mode is currently ON, which overrides this consent - no calls happen either way."
+              : ""}
+          </p>
+        </div>
+        <Switch name="aiConsent" defaultChecked={consented} aria-label="Generative AI consent" />
+      </div>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : t("common.save")}
       </Button>

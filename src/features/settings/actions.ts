@@ -140,3 +140,27 @@ export async function updateNotificationsAction(
   await auditSettings(user.id, "settings.notifications_updated");
   return ok({ message: "Notification preferences saved." });
 }
+
+const aiConsentSchema = z.object({ aiConsent: z.boolean() });
+
+export async function updateAiConsentAction(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const { user } = await requireUser();
+  const parsed = aiConsentSchema.safeParse({ aiConsent: formData.get("aiConsent") === "on" });
+  if (!parsed.success) return zodToErr(parsed.error);
+
+  await preferencesRepo.update(getDb(), user.id, {
+    aiConsentAt: parsed.data.aiConsent ? new Date() : null,
+  });
+  // Consent changes are always audited (spec G6 / privacy doc).
+  await auditSettings(user.id, "consent.ai_updated");
+  revalidatePath("/settings/privacy");
+  revalidatePath("/insights");
+  return ok({
+    message: parsed.data.aiConsent
+      ? "AI consent granted. You can revoke it here at any time."
+      : "AI consent revoked - generative features are off again.",
+  });
+}

@@ -497,6 +497,22 @@ export async function seedDemoFinancial(
       categorizationSource: "default",
     });
   }
+  // Edge case: uncategorized charges at a merchant with rich categorized
+  // history — the Phase 8 scorer can propose a category (and a rule) for these.
+  const scorerMonth = months[months.length - 1];
+  for (let i = 0; i < 2; i += 1) {
+    bulk({
+      accountId: tng.id,
+      type: "expense",
+      status: "posted",
+      amountMinor: -randInt(900, 1800),
+      txnDate: day(scorerMonth, 6 + i * 9),
+      descriptionOriginal: `ZUS COFFEE*NEW${i + 1}`,
+      merchantId: merchantIdByName.get("ZUS Coffee") ?? null,
+      needsReview: true,
+      categorizationSource: "user",
+    });
+  }
   // Edge case: uncategorized rows waiting in Needs review.
   const reviewMonth = months[7];
   for (const [i, desc] of [
