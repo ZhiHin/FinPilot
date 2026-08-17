@@ -17,12 +17,17 @@ import { formatIsoDate, localDateInTz } from "@/lib/dates";
 import { formatMinor } from "@/lib/money";
 import { PERIOD_OPTIONS, previousPeriod, resolvePeriod, shiftRangeMonthsBack } from "@/lib/periods";
 import { t } from "@/lib/i18n";
+import { Progress } from "@/components/ui/progress";
+import { HealthBadge } from "@/features/budgets/labels";
+import { TimeStatusBadge } from "@/features/goals/labels";
 import { requireUser } from "@/server/auth/guard";
 import { getDb } from "@/server/db/client";
 import { preferencesRepo } from "@/server/db/repositories/preferences";
 import { DEMO_USER } from "@/server/db/seeds/demo";
 import { accountsService } from "@/server/services/accounts";
 import { analyticsService, type PeriodTotals } from "@/server/services/analytics";
+import { budgetsService } from "@/server/services/budgets";
+import { goalsService } from "@/server/services/goals";
 import { transactionsService } from "@/server/services/transactions";
 
 export const metadata: Metadata = { title: t("overview.title") };
@@ -72,6 +77,8 @@ export default async function OverviewPage({
     merchantsRes,
     qualityRes,
     recent,
+    budgetList,
+    goals,
   ] = await Promise.all([
     accountsService.netPosition(db, user.id),
     analyticsService.periodTotals(db, user.id, period),
@@ -81,7 +88,32 @@ export default async function OverviewPage({
     analyticsService.topMerchants(db, user.id, { ...period, limit: 5 }),
     analyticsService.dataQuality(db, user.id, period),
     transactionsService.list(db, user.id, { limit: 5 }),
+    budgetsService.list(db, user.id),
+    goalsService.listWithProgress(db, user.id, today),
   ]);
+
+  // Phase 5: compact budget snapshot (first active budget, current cycle).
+  const activeBudget = budgetList.find((b) => b.isActive) ?? null;
+  const budgetReportRes = activeBudget
+    ? await budgetsService.periodReport(db, user.id, { budgetId: activeBudget.id, today })
+    : null;
+  const budgetReport = budgetReportRes && budgetReportRes.ok ? budgetReportRes.data : null;
+  const HEALTH_SEVERITY = { exceeded: 3, at_risk: 2, watch: 1 } as const;
+  const riskyCategories = budgetReport
+    ? budgetReport.allocations
+        .filter((a) => a.health === "exceeded" || a.health === "at_risk" || a.health === "watch")
+        .sort(
+          (a, b) =>
+            HEALTH_SEVERITY[b.health as keyof typeof HEALTH_SEVERITY] -
+            HEALTH_SEVERITY[a.health as keyof typeof HEALTH_SEVERITY],
+        )
+        .slice(0, 2)
+    : [];
+  const activeGoals = goals.filter((g) => g.status === "active");
+  const topGoals = activeGoals.slice(0, 3);
+  const behindGoals = activeGoals.filter(
+    (g) => g.outlook.timeStatus === "behind" || g.outlook.timeStatus === "overdue",
+  );
 
   const totals = unwrapOr<Record<string, PeriodTotals>>(totalsRes, {});
   const prevTotals = unwrapOr<Record<string, PeriodTotals>>(prevTotalsRes, {});
@@ -491,6 +523,157 @@ export default async function OverviewPage({
             </div>
           </>
         )}
+
+        {/* ---- Phase 5: budget + goals snapshots (real data, never fake) ---- */}
+        {hasAccounts ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>Budget this cycle</CardTitle>
+                <Link
+                  href="/budget"
+                  className="text-[12.5px] font-medium text-accent underline underline-offset-2 hover:no-underline"
+                >
+                  Open budget
+                </Link>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {budgetReport ? (
+                  <>
+                    <p className="flex flex-wrap items-center gap-2 text-[13px] text-ink-secondary">
+                      <span className="num text-ink">
+                        <AmountText
+                          amountMinor={budgetReport.totals.postedMinor}
+                          currency={budgetReport.budget.currency}
+                        />
+                      </span>
+                      of
+                      <span className="num">
+                        <AmountText
+                          amountMinor={budgetReport.totals.availableMinor}
+                          currency={budgetReport.budget.currency}
+                        />
+                      </span>
+                      spent · <HealthBadge health={budgetReport.totals.health} />
+                    </p>
+                    <Progress
+                      value={
+                        budgetReport.totals.usageBp === null
+                          ? 0
+                          : Math.min(budgetReport.totals.usageBp, 10000)
+                      }
+                      max={10000}
+                      label={
+                        budgetReport.totals.usageBp === null
+                          ? "Budget usage: no allocations yet"
+                          : `Budget usage: ${formatBp(budgetReport.totals.usageBp)} of the available budget spent`
+                      }
+                    />
+                    {budgetReport.allocations.length === 0 ? (
+                      <p className="text-[12.5px] text-ink-muted">
+                        No categories allocated for this cycle yet —{" "}
+                        <Link href="/budget" className="font-medium text-accent underline">
+                          plan the cycle
+                        </Link>
+                        .
+                      </p>
+                    ) : riskyCategories.length > 0 ? (
+                      <ul className="flex flex-col gap-1 text-[12.5px] text-ink-secondary">
+                        {riskyCategories.map((row) => (
+                          <li
+                            key={row.allocationId}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span>{row.categoryName}</span>
+                            <span className="flex items-center gap-2">
+                              <span className="num">
+                                <AmountText
+                                  amountMinor={row.remainingMinor}
+                                  currency={budgetReport.budget.currency}
+                                />{" "}
+                                left
+                              </span>
+                              <HealthBadge health={row.health} />
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[12.5px] text-ink-muted">
+                        No categories need attention right now.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[13px] text-ink-muted">
+                    No budget yet —{" "}
+                    <Link href="/budget" className="font-medium text-accent underline">
+                      create one
+                    </Link>{" "}
+                    to watch spending pace per category.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>Savings goals</CardTitle>
+                <Link
+                  href="/goals"
+                  className="text-[12.5px] font-medium text-accent underline underline-offset-2 hover:no-underline"
+                >
+                  Open goals
+                </Link>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {topGoals.length === 0 ? (
+                  <p className="text-[13px] text-ink-muted">
+                    No active goals —{" "}
+                    <Link href="/goals" className="font-medium text-accent underline">
+                      create one
+                    </Link>{" "}
+                    (an emergency fund is the classic first goal).
+                  </p>
+                ) : (
+                  <>
+                    <ul className="flex flex-col gap-3">
+                      {topGoals.map((goal) => (
+                        <li key={goal.id} className="flex flex-col gap-1">
+                          <span className="flex items-center justify-between gap-2 text-[13px]">
+                            <Link
+                              href={`/goals/${goal.id}`}
+                              className="font-medium text-ink underline-offset-2 hover:underline"
+                            >
+                              {goal.name}
+                            </Link>
+                            <span className="flex items-center gap-2">
+                              <span className="num text-ink-secondary">
+                                {formatBp(Math.min(goal.outlook.progressBp, 10000))}
+                              </span>
+                              <TimeStatusBadge status={goal.outlook.timeStatus} />
+                            </span>
+                          </span>
+                          <Progress
+                            value={Math.min(goal.outlook.progressBp, 10000)}
+                            max={10000}
+                            label={`${goal.name}: ${formatBp(goal.outlook.progressBp)} of the target saved`}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                    {behindGoals.length > 0 ? (
+                      <p className="text-[12.5px] text-ink-secondary">
+                        {behindGoals.length} goal{behindGoals.length === 1 ? " is" : "s are"} behind
+                        schedule at the current contribution rate.
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
 
         {/* Setup strip: onboarding choices stay visible regardless of data. */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

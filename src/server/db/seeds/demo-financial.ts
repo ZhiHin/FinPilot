@@ -6,7 +6,9 @@ import type { Db } from "../client";
 import { auditRepo } from "../repositories/audit";
 import { transactions } from "../schema";
 import { accountsService, type AccountRow } from "../../services/accounts";
+import { budgetsService } from "../../services/budgets";
 import { categoriesService } from "../../services/categories";
+import { goalsService } from "../../services/goals";
 import { merchantsService } from "../../services/merchants";
 import { transactionsService } from "../../services/transactions";
 import { DEMO_USER, seedDemo } from "./demo";
@@ -661,6 +663,124 @@ export async function seedDemoFinancial(
       "pending",
     );
     serviceCount += 1;
+  }
+
+  /* --------------------------- planning (Phase 5) --------------------------- */
+  // Payday budget matching the persona (25th, weekend-adjusted, flexible mode).
+  const budget = must(
+    await budgetsService.create(db, userId, {
+      name: "Monthly essentials",
+      mode: "flexible",
+      cycleType: "payday",
+      cycleAnchor: { day: 25, weekendAdjust: true },
+    }),
+    "demo budget",
+  );
+  const currentCycle = must(
+    await budgetsService.periodReport(db, userId, { budgetId: budget.id, today }),
+    "demo budget report",
+  );
+  const previousCycle = must(
+    await budgetsService.periodReport(db, userId, {
+      budgetId: budget.id,
+      periodStart: currentCycle.nav.prevStart,
+      today,
+    }),
+    "demo previous cycle",
+  );
+  const allocationPlan: Array<{ category: string; planned: number; rollover?: boolean }> = [
+    { category: "Groceries", planned: 70000 },
+    { category: "Eating out", planned: 45000 },
+    { category: "Food delivery", planned: 25000 },
+    { category: "Petrol", planned: 35000, rollover: true },
+    { category: "Coffee & snacks", planned: 12000 },
+  ];
+  for (const periodId of [previousCycle.period.id, currentCycle.period.id]) {
+    for (const item of allocationPlan) {
+      must(
+        await budgetsService.setAllocation(db, userId, {
+          periodId,
+          categoryId: cat(item.category),
+          plannedMinor: item.planned,
+          rolloverEnabled: item.rollover ?? false,
+        }),
+        `demo allocation ${item.category}`,
+      );
+    }
+  }
+
+  // Savings goals: on-track emergency fund, behind travel goal, dateless purchase.
+  const targetIn = (monthsAhead: number): string => {
+    const [y, m] = today.split("-").map(Number);
+    const index = y * 12 + (m - 1) + monthsAhead;
+    const daysIn = new Date(Date.UTC(Math.floor(index / 12), (index % 12) + 1, 0)).getUTCDate();
+    return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}-${String(daysIn).padStart(2, "0")}`;
+  };
+  const emergency = must(
+    await goalsService.create(db, userId, {
+      name: "Emergency fund",
+      type: "emergency",
+      targetAmountMinor: 1500000,
+      targetDate: targetIn(13),
+      priority: 1,
+      contributionSchedule: { amountMinor: 55000, frequency: "monthly" },
+    }),
+    "demo emergency goal",
+  );
+  must(
+    await goalsService.addContribution(db, userId, emergency.id, {
+      amountMinor: 500000,
+      contributedOn: day(months[1], 2),
+      note: "Starting balance moved from savings",
+    }),
+    "emergency seed contribution",
+  );
+  for (let i = 2; i < 8; i++) {
+    must(
+      await goalsService.addContribution(db, userId, emergency.id, {
+        amountMinor: 55000,
+        contributedOn: day(months[i], 26),
+      }),
+      "emergency monthly contribution",
+    );
+  }
+  const travel = must(
+    await goalsService.create(db, userId, {
+      name: "Japan trip",
+      type: "travel",
+      targetAmountMinor: 600000,
+      targetDate: targetIn(9),
+      priority: 2,
+      contributionSchedule: { amountMinor: 30000, frequency: "monthly" },
+    }),
+    "demo travel goal",
+  );
+  for (let i = 5; i < 8; i++) {
+    must(
+      await goalsService.addContribution(db, userId, travel.id, {
+        amountMinor: 40000,
+        contributedOn: day(months[i], 27),
+      }),
+      "travel contribution",
+    );
+  }
+  const laptop = must(
+    await goalsService.create(db, userId, {
+      name: "New laptop",
+      type: "purchase",
+      targetAmountMinor: 280000,
+      priority: 3,
+    }),
+    "demo laptop goal",
+  );
+  for (const [index, amount] of [80000, 80000, 40000].entries()) {
+    must(
+      await goalsService.addContribution(db, userId, laptop.id, {
+        amountMinor: amount,
+        contributedOn: day(months[5 + index], 12),
+      }),
+      "laptop contribution",
+    );
   }
 
   await auditRepo.record(db, {
