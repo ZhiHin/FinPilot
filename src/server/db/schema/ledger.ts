@@ -278,6 +278,8 @@ export const transactions = pgTable(
     }),
     notes: text("notes"),
     isReimbursable: boolean("is_reimbursable").notNull().default(false),
+    /** Occurrence-indexed statement hash; unique per account (import idempotency). */
+    importContentHash: text("import_content_hash"),
     version: integer("version").notNull().default(1),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
     updatedAt: timestamptz("updated_at").notNull().defaultNow(),
@@ -292,6 +294,9 @@ export const transactions = pgTable(
       .on(t.userId)
       .where(sql`${t.needsReview} = true and ${t.deletedAt} is null`),
     index("txn_description_trgm_idx").using("gin", sql`${t.descriptionOriginal} gin_trgm_ops`),
+    uniqueIndex("txn_import_hash_unique")
+      .on(t.accountId, t.importContentHash)
+      .where(sql`${t.importContentHash} is not null`),
     check("txn_amount_nonzero", sql`${t.type} = 'adjustment' OR ${t.amountMinor} <> 0`),
     check("txn_sign_expense", sql`${t.type} <> 'expense' OR ${t.amountMinor} < 0`),
     check("txn_sign_income", sql`${t.type} <> 'income' OR ${t.amountMinor} > 0`),

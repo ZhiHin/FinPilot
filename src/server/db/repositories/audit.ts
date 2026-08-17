@@ -53,12 +53,21 @@ export const auditRepo = {
    */
   async countRecentEvents(
     db: Db,
-    args: { eventType: string; since: Date; subjectHash?: string; ipHash?: string },
+    args: {
+      eventType: string;
+      since: Date;
+      subjectHash?: string;
+      ipHash?: string;
+      userId?: string;
+    },
   ): Promise<number> {
     const conditions = [
       eq(auditLogs.eventType, args.eventType),
       gt(auditLogs.createdAt, args.since),
     ];
+    if (args.userId !== undefined) {
+      conditions.push(eq(auditLogs.userId, args.userId));
+    }
     if (args.subjectHash !== undefined) {
       conditions.push(eq(auditLogs.subjectHash, args.subjectHash));
     }

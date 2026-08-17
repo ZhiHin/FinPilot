@@ -4,10 +4,12 @@ An AI personal finance manager for Malaysia — understand where your money went
 safely spend, anticipate upcoming expenses, and test decisions before making them. Educational
 information, not financial advice; FinPilot never moves money.
 
-**Status:** Phase 2 complete (accounts, categories, transactions — with the demo dataset). Product
-docs live in [`docs/phase-0/`](docs/phase-0/README.md); phase progress in
-[`docs/progress/`](docs/progress/phase-2.md). The demo login (`db:seed:demo`) is
-`aisyah.demo@finpilot.test` / `demo-aisyah-2026` — 8 months of synthetic Malaysian data.
+**Status:** Phase 3 complete (CSV statement import with review, idempotent commit, and undo — on
+top of accounts, categories, and transactions). Product docs live in
+[`docs/phase-0/`](docs/phase-0/README.md); phase progress in
+[`docs/progress/`](docs/progress/phase-3.md). The demo login (`db:seed:demo`) is
+`aisyah.demo@finpilot.test` / `demo-aisyah-2026` — 8 months of synthetic Malaysian data. Synthetic
+statement fixtures for trying the import wizard live in `tests/fixtures/statements/`.
 
 ## Stack
 

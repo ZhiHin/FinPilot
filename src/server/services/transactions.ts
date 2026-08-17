@@ -806,7 +806,11 @@ export const transactionsService = {
         });
         await tx
           .update(transactions)
-          .set({ isExcluded: true, updatedAt: sql`now()` })
+          .set({
+            isExcluded: true,
+            version: sql`${transactions.version} + 1`,
+            updatedAt: sql`now()`,
+          })
           .where(
             and(eq(transactions.id, input.duplicateTransactionId), eq(transactions.userId, userId)),
           );
@@ -850,7 +854,11 @@ export const transactionsService = {
       await tx.delete(transactionLinks).where(eq(transactionLinks.id, link.id));
       await tx
         .update(transactions)
-        .set({ isExcluded: false, updatedAt: sql`now()` })
+        .set({
+          isExcluded: false,
+          version: sql`${transactions.version} + 1`,
+          updatedAt: sql`now()`,
+        })
         .where(and(eq(transactions.id, duplicateTransactionId), eq(transactions.userId, userId)));
     });
     return ok({ removed: true as const });
@@ -868,7 +876,11 @@ export const transactionsService = {
     }
     const rows = await db
       .update(transactions)
-      .set({ needsReview: !reviewed, updatedAt: sql`now()` })
+      .set({
+        needsReview: !reviewed,
+        version: sql`${transactions.version} + 1`,
+        updatedAt: sql`now()`,
+      })
       .where(and(inArray(transactions.id, transactionIds), eq(transactions.userId, userId)))
       .returning({ id: transactions.id });
     await auditRepo.record(db, {
@@ -909,7 +921,12 @@ export const transactionsService = {
     }
     const rows = await db
       .update(transactions)
-      .set({ categoryId: input.categoryId, categorizationSource: "user", updatedAt: sql`now()` })
+      .set({
+        categoryId: input.categoryId,
+        categorizationSource: "user",
+        version: sql`${transactions.version} + 1`,
+        updatedAt: sql`now()`,
+      })
       .where(and(inArray(transactions.id, input.transactionIds), eq(transactions.userId, userId)))
       .returning({ id: transactions.id });
     await auditRepo.record(db, {
@@ -933,7 +950,11 @@ export const transactionsService = {
     }
     const rows = await db
       .update(transactions)
-      .set({ isExcluded: input.excluded, updatedAt: sql`now()` })
+      .set({
+        isExcluded: input.excluded,
+        version: sql`${transactions.version} + 1`,
+        updatedAt: sql`now()`,
+      })
       .where(and(inArray(transactions.id, input.transactionIds), eq(transactions.userId, userId)))
       .returning({ id: transactions.id });
     return ok({ updated: rows.length });

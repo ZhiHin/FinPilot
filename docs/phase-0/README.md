@@ -1,8 +1,9 @@
 # FinPilot — Phase 0: Product Foundation
 
 **Status:** Reviewed and approved 2026-08-16 with five amendments (applied — see below).
-Phase 1 complete and pushed ([../progress/phase-1.md](../progress/phase-1.md)) · Phase 2 complete,
-awaiting review ([../progress/phase-2.md](../progress/phase-2.md)).
+Phase 1 pushed ([../progress/phase-1.md](../progress/phase-1.md)) · Phase 2 pushed
+([../progress/phase-2.md](../progress/phase-2.md)) · Phase 3 checkpoint-reviewed and pushed
+([../progress/phase-3.md](../progress/phase-3.md)).
 **Date:** 2026-08-16
 **Working name:** FinPilot (name, logo, and brand tokens are isolated so they can be replaced)
 

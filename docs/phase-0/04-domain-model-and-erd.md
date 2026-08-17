@@ -619,7 +619,7 @@ contribution with linked transfer, account deletion staging, purge.
   |---|---|
   | 1 | `users`, `user_preferences`, `sessions`, `password_reset_tokens`, `audit_logs` (+ `citext` extension, identity enums, audit append-only guard) |
   | 2 | `accounts`, `account_balance_snapshots`, `merchants`, `category_groups`, `categories`, `tags`, `transaction_tags`, `transactions`, `transaction_splits`, `transaction_links`, `categorization_rules`, `attachments` (+ `pg_trgm`, split-sum & currency-match triggers) |
-  | 3 | `import_profiles`, `import_jobs`, `import_rows` (+ job-queue schema via pg-boss) |
+  | 3 | `import_profiles`, `import_jobs`, `import_rows` (+ job-queue schema via pg-boss) — *shipped; provenance normalized as `import_rows.transaction_id` (no `transactions.import_row_id`, avoiding an FK cycle), `transactions.import_content_hash` + partial unique (account, hash) added* |
   | 5 | `budgets`, `budget_periods`, `budget_allocations` (+ `btree_gist` for period exclusion), `savings_goals`, `goal_contributions` |
   | 6 | `recurring_patterns`, `subscriptions`, `notifications` |
   | 7 | `forecasts`, `insights`, `insight_evidence` (deterministic producers) |
