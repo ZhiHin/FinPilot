@@ -361,7 +361,8 @@ export default async function InsightsPage({
                               Data note:{" "}
                               {(insight.dataQuality as { pendingExcluded?: number }).pendingExcluded
                                 ? `${(insight.dataQuality as { pendingExcluded?: number }).pendingExcluded} pending transaction(s) excluded from this math.`
-                                : "See calculation details."}
+                                : ((insight.dataQuality as { journalExcluded?: string })
+                                    .journalExcluded ?? "See calculation details.")}
                             </p>
                           ) : null}
                         </div>

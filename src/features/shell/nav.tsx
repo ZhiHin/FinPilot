@@ -5,6 +5,7 @@ import {
   FlaskConical,
   Import,
   LayoutDashboard,
+  NotebookPen,
   PiggyBank,
   Repeat,
   Settings,
@@ -51,6 +52,7 @@ export function getPrimaryNav(): NavItem[] {
 export function getSecondaryNav(): NavItem[] {
   return [
     { href: "/accounts", label: t("nav.accounts"), icon: <Wallet className={ICON_CLASS} /> },
+    { href: "/journal", label: t("nav.journal"), icon: <NotebookPen className={ICON_CLASS} /> },
     { href: "/imports", label: t("nav.imports"), icon: <Import className={ICON_CLASS} /> },
     {
       href: "/notifications",

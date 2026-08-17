@@ -9,9 +9,11 @@ import {
   computeCashFlowForecast,
   projectOccurrences,
   robustBaseline,
+  type ForecastInputs,
   type ForecastPoint,
 } from "@/lib/intel/forecast";
 import { detectSpendAnomaly } from "@/lib/intel/anomaly";
+import { subtractExclusions, windowsOverlap, type DateWindow } from "@/lib/intel/exclusions";
 import { formatMinor } from "@/lib/money";
 import { paydayFor, prevWindow, resolveWindow, type CycleSpec } from "@/lib/cycles";
 import { normalizeSeriesKey } from "@/lib/recurrence";
@@ -24,6 +26,7 @@ import { accountsService } from "@/server/services/accounts";
 import { analyticsService } from "@/server/services/analytics";
 import { budgetsService } from "@/server/services/budgets";
 import { goalsService } from "@/server/services/goals";
+import { journalService, type ExclusionWindow } from "@/server/services/journal";
 import { recurringService, type PatternRow } from "@/server/services/recurring";
 
 /**
@@ -94,6 +97,189 @@ async function goalDueThisMonth(
     `)
   ).rows;
   return Math.max(scheduleMinor - Number(row?.total ?? 0), 0);
+}
+
+/**
+ * Everything `computeCashFlowForecast` needs, gathered once: liquid balance,
+ * projected pattern occurrences (tagged with their pattern id so scenario
+ * events can target them), and the exclusion-aware non-recurring baseline.
+ * Shared verbatim by the Overview forecast (which caches the result) and the
+ * Scenario Lab simulation (which never writes anything) — one engine, one
+ * gathering path, so a scenario's baseline IS the Overview's projection.
+ */
+export async function gatherForecastInputs(
+  db: Db,
+  userId: string,
+  input: { today: string; horizonDays: number },
+): Promise<{
+  currency: string;
+  bufferMinor: number;
+  patterns: PatternRow[];
+  inputs: ForecastInputs;
+}> {
+  const prefs = await preferencesRepo.get(db, userId);
+  const currency = (prefs?.currency ?? "MYR").trim();
+  const netPosition = await accountsService.netPosition(db, userId);
+  const startBalanceMinor = netPosition[currency]?.liquidMinor ?? 0;
+
+  const patterns = (await recurringService.list(db, userId)).filter(
+    (p) => p.status === "active" && p.currency === currency && p.frequency !== "custom",
+  );
+  const horizonEnd = addDaysIso(input.today, input.horizonDays);
+  const occurrences = projectOccurrences(
+    patterns.map((p) => ({
+      nextExpectedOn: p.nextExpectedOn,
+      frequency: p.frequency,
+      typicalAmountMinor: p.typicalAmountMinor,
+      amountToleranceMinor: p.amountToleranceMinor,
+      confirmed: p.source === "user_confirmed",
+      direction: p.direction,
+      patternId: p.id,
+    })),
+    input.today,
+    horizonEnd,
+  );
+
+  // Non-recurring baseline: trailing 12 weeks of posted net spending minus
+  // charges attributable to the recurring series (same keying as detection).
+  const trailingStart = addDaysIso(input.today, -84);
+  const rows = (
+    await db.execute<{
+      txn_date: string;
+      amount: number;
+      merchant_id: string | null;
+      description: string;
+    }>(sql`
+      select t.txn_date::text as txn_date,
+             (case when t.type = 'refund' then -t.amount_minor else abs(t.amount_minor) end)::bigint as amount,
+             t.merchant_id, t.description_original as description
+      from transactions t
+      where t.user_id = ${userId} and t.status = 'posted' and t.deleted_at is null
+        and t.is_excluded = false and t.currency = ${currency}
+        and t.type in ('expense', 'refund', 'debt_payment')
+        and t.txn_date >= ${trailingStart}::date and t.txn_date < ${input.today}::date
+    `)
+  ).rows;
+  const recurringMerchants = new Set(
+    patterns.filter((p) => p.merchantId).map((p) => p.merchantId as string),
+  );
+  const recurringNames = new Set(
+    patterns.filter((p) => !p.merchantId).map((p) => normalizeSeriesKey(p.name)),
+  );
+  // Journal one-off periods leave the baseline entirely (spec V2).
+  const exclusionWindows = await journalService.exclusionWindows(db, userId);
+  const isExcludedDate = (isoDate: string): boolean =>
+    exclusionWindows.some((w) => isoDate >= w.start && isoDate <= w.end);
+  const weeklySums = new Array<number>(12).fill(0);
+  const dayNumber = (isoDate: string): number => {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    return Date.UTC(y, m - 1, d) / 86_400_000;
+  };
+  const startDay = dayNumber(trailingStart);
+  for (const row of rows) {
+    if (row.merchant_id && recurringMerchants.has(row.merchant_id)) continue;
+    if (recurringNames.has(normalizeSeriesKey(row.description))) continue;
+    if (isExcludedDate(row.txn_date)) continue;
+    const week = Math.min(Math.floor((dayNumber(row.txn_date) - startDay) / 7), 11);
+    weeklySums[week] += Number(row.amount);
+  }
+
+  return {
+    currency,
+    bufferMinor: prefs?.safetyBufferMinor ?? 0,
+    patterns,
+    inputs: {
+      startBalanceMinor,
+      today: input.today,
+      horizonDays: input.horizonDays,
+      occurrences,
+      baseline: robustBaseline(weeklySums),
+    },
+  };
+}
+
+/**
+ * Category expense totals for a window with journal one-off periods removed
+ * (spec V2, Journey 7). Sums run through the SAME analytics engine over the
+ * remaining segments, so exclusion can never drift from the reporting rules.
+ * Also reports what each overlapping entry removed, for the explanation
+ * ("December travel (RM 2,140, marked one-time) was excluded from your
+ * baseline"). A window swallowed whole reports `fullyExcluded` so producers
+ * DROP it from their history sample instead of counting a fake zero-spend
+ * period. Exported for the V2 acceptance tests.
+ */
+export async function categorySpendExcluding(
+  db: Db,
+  userId: string,
+  window: DateWindow,
+  exclusions: ExclusionWindow[],
+  currency: string,
+): Promise<{
+  amountFor: (categoryId: string) => number;
+  excluded: Array<{ title: string; categoryId: string; amountMinor: number }>;
+  fullyExcluded: boolean;
+}> {
+  const segments = subtractExclusions(window, exclusions);
+  const uncut =
+    segments.length === 1 && segments[0].start === window.start && segments[0].end === window.end;
+  const totals = new Map<string, number>();
+  for (const segment of segments) {
+    const res = await analyticsService.categoryBreakdown(db, userId, {
+      dateFrom: segment.start,
+      dateTo: segment.end,
+      kind: "expense",
+    });
+    if (!res.ok) continue;
+    for (const row of res.data) {
+      if (row.currency !== currency || row.categoryId === null) continue;
+      totals.set(row.categoryId, (totals.get(row.categoryId) ?? 0) + row.amountMinor);
+    }
+  }
+  const excluded: Array<{ title: string; categoryId: string; amountMinor: number }> = [];
+  if (!uncut) {
+    for (const exclusion of exclusions) {
+      if (!windowsOverlap(window, exclusion)) continue;
+      const res = await analyticsService.categoryBreakdown(db, userId, {
+        dateFrom: exclusion.start > window.start ? exclusion.start : window.start,
+        dateTo: exclusion.end < window.end ? exclusion.end : window.end,
+        kind: "expense",
+      });
+      if (!res.ok) continue;
+      for (const row of res.data) {
+        if (row.currency !== currency || row.categoryId === null || row.amountMinor === 0) continue;
+        excluded.push({
+          title: exclusion.title,
+          categoryId: row.categoryId,
+          amountMinor: row.amountMinor,
+        });
+      }
+    }
+  }
+  return {
+    amountFor: (categoryId) => totals.get(categoryId) ?? 0,
+    excluded,
+    fullyExcluded: segments.length === 0,
+  };
+}
+
+/** One-line explanation of what a category's baseline left out (Journey 7). */
+function exclusionSentence(
+  excluded: Array<{ title: string; categoryId: string; amountMinor: number }>,
+  categoryId: string,
+  currency: string,
+): string | null {
+  const byTitle = new Map<string, number>();
+  for (const item of excluded) {
+    if (item.categoryId !== categoryId) continue;
+    byTitle.set(item.title, (byTitle.get(item.title) ?? 0) + item.amountMinor);
+  }
+  if (byTitle.size === 0) return null;
+  return [...byTitle.entries()]
+    .map(
+      ([title, amountMinor]) =>
+        `${title} (${formatMinor(amountMinor, currency)}, marked one-time) was excluded from your baseline`,
+    )
+    .join("; ");
 }
 
 export const intelService = {
@@ -216,12 +402,14 @@ export const intelService = {
     const prefs = await preferencesRepo.get(db, userId);
     const currency = (prefs?.currency ?? "MYR").trim();
 
-    // Inputs hash: ledger + pattern fingerprints; any change recomputes.
+    // Inputs hash: ledger + pattern + journal fingerprints; any change
+    // recomputes (annotating a one-off period must invalidate the cache).
     const [fingerprint] = (
-      await db.execute<{ txn: string; pat: string }>(sql`
+      await db.execute<{ txn: string; pat: string; jrn: string }>(sql`
         select
           (select coalesce(max(updated_at)::text, '') || count(*)::text from transactions where user_id = ${userId}) as txn,
-          (select coalesce(max(updated_at)::text, '') || count(*)::text from recurring_patterns where user_id = ${userId}) as pat
+          (select coalesce(max(updated_at)::text, '') || count(*)::text from recurring_patterns where user_id = ${userId}) as pat,
+          (select coalesce(max(updated_at)::text, '') || count(*)::text from journal_entries where user_id = ${userId}) as jrn
       `)
     ).rows;
     const inputsHash = createHash("sha256")
@@ -234,6 +422,7 @@ export const intelService = {
           currency,
           fingerprint?.txn,
           fingerprint?.pat,
+          fingerprint?.jrn,
         ].join("|"),
       )
       .digest("hex");
@@ -260,73 +449,11 @@ export const intelService = {
       return ok({ ...stored, currency, cached: true, method: FORECAST_METHOD });
     }
 
-    const netPosition = await accountsService.netPosition(db, userId);
-    const startBalanceMinor = netPosition[currency]?.liquidMinor ?? 0;
-
-    const patterns = (await recurringService.list(db, userId)).filter(
-      (p) => p.status === "active" && p.currency === currency && p.frequency !== "custom",
-    );
-    const horizonEnd = addDaysIso(input.today, input.horizonDays);
-    const occurrences = projectOccurrences(
-      patterns.map((p) => ({
-        nextExpectedOn: p.nextExpectedOn,
-        frequency: p.frequency,
-        typicalAmountMinor: p.typicalAmountMinor,
-        amountToleranceMinor: p.amountToleranceMinor,
-        confirmed: p.source === "user_confirmed",
-        direction: p.direction,
-      })),
-      input.today,
-      horizonEnd,
-    );
-
-    // Non-recurring baseline: trailing 12 weeks of posted net spending minus
-    // charges attributable to the recurring series (same keying as detection).
-    const trailingStart = addDaysIso(input.today, -84);
-    const rows = (
-      await db.execute<{
-        txn_date: string;
-        amount: number;
-        merchant_id: string | null;
-        description: string;
-      }>(sql`
-        select t.txn_date::text as txn_date,
-               (case when t.type = 'refund' then -t.amount_minor else abs(t.amount_minor) end)::bigint as amount,
-               t.merchant_id, t.description_original as description
-        from transactions t
-        where t.user_id = ${userId} and t.status = 'posted' and t.deleted_at is null
-          and t.is_excluded = false and t.currency = ${currency}
-          and t.type in ('expense', 'refund', 'debt_payment')
-          and t.txn_date >= ${trailingStart}::date and t.txn_date < ${input.today}::date
-      `)
-    ).rows;
-    const recurringMerchants = new Set(
-      patterns.filter((p) => p.merchantId).map((p) => p.merchantId as string),
-    );
-    const recurringNames = new Set(
-      patterns.filter((p) => !p.merchantId).map((p) => normalizeSeriesKey(p.name)),
-    );
-    const weeklySums = new Array<number>(12).fill(0);
-    const dayNumber = (isoDate: string): number => {
-      const [y, m, d] = isoDate.split("-").map(Number);
-      return Date.UTC(y, m - 1, d) / 86_400_000;
-    };
-    const startDay = dayNumber(trailingStart);
-    for (const row of rows) {
-      if (row.merchant_id && recurringMerchants.has(row.merchant_id)) continue;
-      if (recurringNames.has(normalizeSeriesKey(row.description))) continue;
-      const week = Math.min(Math.floor((dayNumber(row.txn_date) - startDay) / 7), 11);
-      weeklySums[week] += Number(row.amount);
-    }
-    const baseline = robustBaseline(weeklySums);
-
-    const result = computeCashFlowForecast({
-      startBalanceMinor,
+    const gathered = await gatherForecastInputs(db, userId, {
       today: input.today,
       horizonDays: input.horizonDays,
-      occurrences,
-      baseline,
     });
+    const result = computeCashFlowForecast(gathered.inputs);
 
     const payload = {
       series: result.series,
@@ -522,34 +649,44 @@ export const intelService = {
     }
 
     // ---- anomaly: last complete month vs trailing 6-month baseline ----
+    // Journal one-off periods leave the baseline months (spec V2, Journey 7).
+    const exclusionWindows = await journalService.exclusionWindows(db, userId);
     if (currentBreakdown.ok) {
       const historyWindows = [-2, -3, -4, -5, -6, -7].map((delta) => monthOf(delta));
-      const historyBreakdowns = await Promise.all(
-        historyWindows.map((window) =>
-          analyticsService.categoryBreakdown(db, userId, {
-            dateFrom: window.start,
-            dateTo: window.end,
-            kind: "expense",
-          }),
-        ),
-      );
+      const historyData: Array<Awaited<ReturnType<typeof categorySpendExcluding>>> = [];
+      for (const window of historyWindows) {
+        historyData.push(
+          await categorySpendExcluding(
+            db,
+            userId,
+            { start: window.start, end: window.end },
+            exclusionWindows,
+            currency,
+          ),
+        );
+      }
+      // Fully excluded months leave the sample entirely — they are not
+      // fake zero-spend months (min-samples guard still applies).
+      const usableHistory = historyData.filter((data) => !data.fullyExcluded);
       for (const row of currentBreakdown.data.filter(
         (r) => r.currency === currency && r.categoryId !== null,
       )) {
         if (coveredCategories.has(row.categoryId as string)) continue;
-        const history = historyBreakdowns.map((res) =>
-          res.ok
-            ? (res.data.find((h) => h.categoryId === row.categoryId && h.currency === currency)
-                ?.amountMinor ?? 0)
-            : 0,
-        );
+        const history = usableHistory.map((data) => data.amountFor(row.categoryId as string));
         const verdict = detectSpendAnomaly(row.amountMinor, history);
         if (!verdict.isAnomaly) continue;
+        const excludedNote = exclusionSentence(
+          historyData.flatMap((data) => data.excluded),
+          row.categoryId as string,
+          currency,
+        );
         candidates.push({
           type: "anomaly",
           severity: "attention",
           title: `${row.categoryName} was unusually high last month`,
-          body: `${formatMinor(row.amountMinor, currency)} against a typical ${formatMinor(verdict.baselineMedianMinor, currency)} (six-month median) — ${formatMinor(verdict.deltaMinor, currency)} above your own baseline.`,
+          body:
+            `${formatMinor(row.amountMinor, currency)} against a typical ${formatMinor(verdict.baselineMedianMinor, currency)} (six-month median) — ${formatMinor(verdict.deltaMinor, currency)} above your own baseline.` +
+            (excludedNote ? ` ${excludedNote}.` : ""),
           periodStart: current.start,
           periodEnd: current.end,
           comparison: {
@@ -558,7 +695,7 @@ export const intelService = {
             robustZ: Math.round((verdict.z ?? 0) * 100) / 100,
           },
           confidenceBp: 8500,
-          dataQuality: {},
+          dataQuality: excludedNote ? { journalExcluded: excludedNote } : {},
           dedupKey: `anomaly:${row.categoryId}:${current.key}`,
           validUntil: new Date(Date.now() + 60 * 24 * 60 * 60_000),
           evidence: [
@@ -569,6 +706,7 @@ export const intelService = {
                 baseline: history,
                 currentMinor: row.amountMinor,
                 z: verdict.z,
+                ...(excludedNote ? { journalExcluded: excludedNote } : {}),
               },
             },
           ],
@@ -628,35 +766,43 @@ export const intelService = {
           window = prevWindow(spec, window);
           cycles.push({ start: window.periodStart, end: window.periodEnd });
         }
-        const cycleBreakdowns = await Promise.all(
-          cycles.map((cycle) =>
-            analyticsService.categoryBreakdown(db, userId, {
-              dateFrom: cycle.start,
-              dateTo: cycle.end,
-              kind: "expense",
-            }),
-          ),
-        );
-        for (const allocation of report.data.allocations) {
-          const spends = cycleBreakdowns.map((res) =>
-            res.ok
-              ? (res.data.find(
-                  (r) => r.categoryId === allocation.categoryId && r.currency === currency,
-                )?.amountMinor ?? 0)
-              : 0,
+        const cycleData: Array<Awaited<ReturnType<typeof categorySpendExcluding>>> = [];
+        for (const cycle of cycles) {
+          cycleData.push(
+            await categorySpendExcluding(db, userId, cycle, exclusionWindows, currency),
           );
+        }
+        // Fully excluded cycles leave the sample (not fake zero-spend cycles);
+        // fewer than two clean cycles is too little history to suggest from.
+        const usableCycles = cycles
+          .map((cycle, index) => ({ cycle, data: cycleData[index] }))
+          .filter((pair) => !pair.data.fullyExcluded);
+        for (const allocation of report.data.allocations) {
+          if (usableCycles.length < 2) continue;
+          const spends = usableCycles.map((pair) => pair.data.amountFor(allocation.categoryId));
           const sorted = [...spends].sort((a, b) => a - b);
-          const medianMinor = sorted[1]; // median of 3
+          const medianMinor =
+            sorted.length % 2 === 1
+              ? sorted[(sorted.length - 1) / 2]
+              : Math.round((sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2);
           const deltaMinor = medianMinor - allocation.plannedMinor;
           const threshold = Math.max(Math.round(allocation.plannedMinor * 0.1), 5000);
           if (Math.abs(deltaMinor) < threshold || medianMinor === 0) continue;
           const suggestedMinor = Math.round(medianMinor / 1000) * 1000; // to RM 10
           if (suggestedMinor === allocation.plannedMinor) continue;
+          const excludedNote = exclusionSentence(
+            cycleData.flatMap((data) => data.excluded),
+            allocation.categoryId,
+            currency,
+          );
           candidates.push({
             type: "budget_suggestion",
             severity: "info",
             title: `${deltaMinor > 0 ? "Raise" : "Lower"} ${allocation.categoryName} to ${formatMinor(suggestedMinor, currency)}`,
-            body: `Planned ${formatMinor(allocation.plannedMinor, currency)}, but your last three cycles' median spending is ${formatMinor(medianMinor, currency)}. A deterministic baseline comparison — nothing changes unless you apply it.`,
+            body:
+              `Planned ${formatMinor(allocation.plannedMinor, currency)}, but your last three cycles' median spending is ${formatMinor(medianMinor, currency)}.` +
+              (excludedNote ? ` ${excludedNote}.` : "") +
+              ` A deterministic baseline comparison — nothing changes unless you apply it.`,
             periodStart: report.data.period.periodStart,
             periodEnd: report.data.period.periodEnd,
             comparison: {
@@ -669,17 +815,21 @@ export const intelService = {
               allocationVersion: allocation.version,
             },
             confidenceBp: 8000,
-            dataQuality: {},
+            dataQuality: excludedNote ? { journalExcluded: excludedNote } : {},
             dedupKey: `budget_suggestion:${allocation.allocationId}:${report.data.period.periodStart}`,
             validUntil: new Date(Date.now() + 45 * 24 * 60 * 60_000),
             evidence: [
               {
                 evidenceType: "aggregate",
                 payload: {
-                  cycles: cycles.map((cycle, index) => ({ ...cycle, spendMinor: spends[index] })),
+                  cycles: usableCycles.map((pair, index) => ({
+                    ...pair.cycle,
+                    spendMinor: spends[index],
+                  })),
                   medianMinor,
                   plannedMinor: allocation.plannedMinor,
                   suggestedMinor,
+                  ...(excludedNote ? { journalExcluded: excludedNote } : {}),
                 },
               },
             ],

@@ -28,6 +28,7 @@ export const enMY = {
   "nav.scenarios": "Scenario Lab",
   "nav.insights": "AI Insights",
   "nav.accounts": "Accounts",
+  "nav.journal": "Journal",
   "nav.imports": "Imports",
   "nav.notifications": "Notifications",
   "nav.settings": "Settings",

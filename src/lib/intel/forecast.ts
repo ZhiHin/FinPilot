@@ -23,6 +23,8 @@ export interface ProjectedOccurrence {
   toleranceMinor: number;
   confirmed: boolean;
   direction: "inflow" | "outflow";
+  /** Source pattern id, carried through so scenario events can target it. */
+  patternId?: string;
 }
 
 export interface ProjectablePattern {
@@ -32,6 +34,7 @@ export interface ProjectablePattern {
   amountToleranceMinor: number;
   confirmed: boolean;
   direction: "inflow" | "outflow";
+  patternId?: string;
 }
 
 /** All occurrences of the patterns inside (from, to] — bounded projection. */
@@ -52,6 +55,7 @@ export function projectOccurrences(
           toleranceMinor: pattern.amountToleranceMinor,
           confirmed: pattern.confirmed,
           direction: pattern.direction,
+          patternId: pattern.patternId,
         });
       }
       cursor = nextExpected(cursor, pattern.frequency as RecurringFrequency);

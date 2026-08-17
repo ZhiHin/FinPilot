@@ -90,7 +90,7 @@ afterAll(async () => {
 });
 
 describe("Phase 2 tables", () => {
-  test("migrations create exactly the Phase 1–8 tables", async () => {
+  test("migrations create exactly the Phase 1–9 tables", async () => {
     const { rows } = await db.pool.query<{ table_name: string }>(
       `select table_name from information_schema.tables
        where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name`,
@@ -117,11 +117,15 @@ describe("Phase 2 tables", () => {
       "import_rows",
       "insight_evidence",
       "insights",
+      "journal_entries",
+      "journal_links",
       "merchants",
       "notifications",
       "password_reset_tokens",
       "recurring_patterns",
       "savings_goals",
+      "scenario_events",
+      "scenarios",
       "sessions",
       "subscriptions",
       "tags",

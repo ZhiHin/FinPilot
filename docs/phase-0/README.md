@@ -8,7 +8,8 @@ Phase 1 pushed ([../progress/phase-1.md](../progress/phase-1.md)) · Phase 2 pus
 ([../progress/phase-5.md](../progress/phase-5.md)) · Phase 6 pushed
 ([../progress/phase-6.md](../progress/phase-6.md)) · Phase 7 pushed
 ([../progress/phase-7.md](../progress/phase-7.md)) · Phase 8 pushed
-([../progress/phase-8.md](../progress/phase-8.md)).
+([../progress/phase-8.md](../progress/phase-8.md)) · Phase 9 pushed
+([../progress/phase-9.md](../progress/phase-9.md)).
 **Date:** 2026-08-16
 **Working name:** FinPilot (name, logo, and brand tokens are isolated so they can be replaced)
 

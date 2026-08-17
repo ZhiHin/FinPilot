@@ -4,7 +4,7 @@ import { isOk } from "@/lib/result";
 
 import type { Db } from "../client";
 import { auditRepo } from "../repositories/audit";
-import { transactions } from "../schema";
+import { journalEntries, transactions } from "../schema";
 import { accountsService, type AccountRow } from "../../services/accounts";
 import { budgetsService } from "../../services/budgets";
 import { categoriesService } from "../../services/categories";
@@ -619,6 +619,42 @@ export async function seedDemoFinancial(
     "split",
   );
   serviceCount += 1;
+
+  // Journey 7: a one-off travel cluster with its journal annotation — the
+  // wedding-month spending is marked one-time, so baselines exclude it.
+  must(
+    await transactionsService.create(db, userId, {
+      accountId: card.id,
+      type: "expense",
+      amountMinor: -124000,
+      txnDate: day(months[2], 8),
+      description: "AIRASIA FLIGHTS X2 KCH",
+      categoryId: cat("Travel"),
+    }),
+    "travel flights",
+  );
+  must(
+    await transactionsService.create(db, userId, {
+      accountId: card.id,
+      type: "expense",
+      amountMinor: -90000,
+      txnDate: day(months[2], 10),
+      description: "RIVERSIDE HOTEL KUCHING",
+      categoryId: cat("Travel"),
+    }),
+    "travel hotel",
+  );
+  await db.insert(journalEntries).values({
+    id: uuidv7(),
+    userId,
+    kind: "life_event",
+    title: "Travel — family wedding",
+    body: "Flights and hotel in Kuching for a cousin's wedding. One-off.",
+    startsOn: day(months[2], 7),
+    endsOn: day(months[2], 12),
+    excludeFromBaselines: true,
+  });
+  serviceCount += 2;
 
   // Cash-style adjustment on the e-wallet.
   must(

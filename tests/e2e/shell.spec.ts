@@ -25,10 +25,11 @@ test.describe("responsive application shell", () => {
     }
   });
 
-  test("placeholder destinations are honestly labeled with their phase", async ({ page }) => {
-    // Scenario Lab is the last remaining placeholder (Phase 9).
+  test("every destination is real — no placeholders remain", async ({ page }) => {
+    // Scenario Lab was the last placeholder; since Phase 9 it is a live page.
     await page.goto("/scenarios");
-    await expect(page.getByText(/arrives in Phase 9/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "New scenario" })).toBeVisible();
+    await expect(page.getByText(/arrives in Phase/i)).toHaveCount(0);
   });
 
   test("command palette opens with Ctrl+K and navigates", async ({ page }) => {
