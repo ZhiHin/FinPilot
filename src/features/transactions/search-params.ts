@@ -11,6 +11,8 @@ export interface TransactionsSearchParams {
   q?: string;
   sort?: string;
   cursor?: string;
+  /** Same-app return path for report drill-downs (validated before rendering). */
+  back?: string;
 }
 
 export type SavedView = "all" | "review" | "pending" | "excluded" | "deleted";
@@ -92,6 +94,7 @@ export function transactionsHref(
     "to",
     "q",
     "sort",
+    "back",
   ] as const) {
     const value = overrides[key] !== undefined ? overrides[key] : params[key];
     if (value) next[key] = value;

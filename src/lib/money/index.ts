@@ -55,6 +55,29 @@ export function formatMinor(
   return negative ? `-${rendered}` : rendered;
 }
 
+/**
+ * Compact axis-tick rendering for charts, e.g. 525000 → "5.3k", -120000 → "-1.2k".
+ * Currency symbols stay off the axis (the chart card names the currency);
+ * derived with integer arithmetic into tenths before Intl compacts it.
+ */
+export function formatMinorCompact(
+  amountMinor: number,
+  currency: string,
+  locale: string = DEFAULT_LOCALE,
+): string {
+  assertSafeMinor(amountMinor);
+  const factor = 10 ** exponentFor(currency);
+  const negative = amountMinor < 0;
+  const abs = Math.abs(amountMinor);
+  // Major units rounded to one decimal place, as tenths (integer math).
+  const tenths = Math.round((abs * 10) / factor);
+  const rendered = new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(tenths / 10);
+  return negative ? `-${rendered}` : rendered;
+}
+
 const AMOUNT_PATTERN = /^(?:\d{1,3}(?:,\d{3})*|\d+)(?:\.\d+)?$/;
 
 /**

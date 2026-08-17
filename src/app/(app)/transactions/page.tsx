@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { AmountText } from "@/components/ui/amount-text";
 import { Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -118,6 +119,16 @@ export default async function TransactionsPage({
       />
 
       <div className="flex flex-col gap-4">
+        {/* Drill-down origin: a safe, same-app path back to analytics/overview. */}
+        {params.back && /^\/(analytics|overview)(\?|$)/.test(params.back) ? (
+          <Banner variant="info">
+            You’re viewing transactions filtered from a report.{" "}
+            <Link href={params.back} className="font-semibold underline">
+              Back to {params.back.startsWith("/analytics") ? "Analytics" : "Overview"}
+            </Link>
+          </Banner>
+        ) : null}
+
         {/* Saved views */}
         <nav aria-label="Saved views" className="flex flex-wrap gap-1">
           {VIEWS.map((entry) => (

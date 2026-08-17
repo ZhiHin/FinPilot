@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
 
-import { allocateMinor, assertSafeMinor, formatMinor, parseAmountToMinor, sumMinor } from "./index";
+import {
+  allocateMinor,
+  assertSafeMinor,
+  formatMinor,
+  formatMinorCompact,
+  parseAmountToMinor,
+  sumMinor,
+} from "./index";
 
 // ICU (the ground truth for display formatting) separates "RM" from the digits with a
 // non-breaking space (U+00A0) so amounts never wrap after the symbol.
@@ -27,6 +34,22 @@ describe("formatMinor", () => {
   test("rejects unsafe or fractional minor units", () => {
     expect(() => formatMinor(1.5, "MYR")).toThrow();
     expect(() => formatMinor(Number.MAX_SAFE_INTEGER + 1, "MYR")).toThrow();
+  });
+});
+
+describe("formatMinorCompact (chart axis ticks)", () => {
+  test("compacts large amounts to one decimal", () => {
+    expect(formatMinorCompact(525000, "MYR")).toBe("5.3K");
+    expect(formatMinorCompact(1234500, "MYR")).toBe("12.3K");
+  });
+
+  test("keeps small amounts and zero readable", () => {
+    expect(formatMinorCompact(0, "MYR")).toBe("0");
+    expect(formatMinorCompact(9900, "MYR")).toBe("99");
+  });
+
+  test("preserves the sign", () => {
+    expect(formatMinorCompact(-120000, "MYR")).toBe("-1.2K");
   });
 });
 
