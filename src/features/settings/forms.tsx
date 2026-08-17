@@ -170,14 +170,27 @@ export function PrivacyForm({ privacyMode }: { privacyMode: boolean }) {
   );
 }
 
+const NOTIFICATION_TYPE_OPTIONS = [
+  ["bill_cluster", "Bill clusters (several bills landing together)"],
+  ["upcoming_bill", "Large upcoming bills"],
+  ["subscription_change", "Subscription price changes"],
+  ["budget_pace", "Budget categories at risk or exceeded"],
+  ["goal_behind", "Savings goals behind schedule"],
+  ["duplicate_service", "Possible duplicate services"],
+] as const;
+
 export function NotificationsForm({
   digestFrequency,
   quietHoursStart,
   quietHoursEnd,
+  largeBill,
+  types,
 }: {
   digestFrequency: string;
   quietHoursStart: string;
   quietHoursEnd: string;
+  largeBill: string;
+  types: Partial<Record<string, boolean>>;
 }) {
   const [state, action, pending] = useActionState(updateNotificationsAction, null);
   const errors = errorsOf(state);
@@ -185,16 +198,29 @@ export function NotificationsForm({
     <form action={action} className="flex flex-col gap-4" noValidate>
       <StateBanner state={state} />
       <Banner variant="info">
-        The notification centre arrives in Phase 6. Your preferences are saved now and honored from
-        day one of alerts.
+        In-app alerts are live: deduplicated (each alert appears once, ever) and silent during your
+        quiet hours. Email delivery arrives post-V1 — the digest setting is stored and honored then.
       </Banner>
-      <FormField label="Digest frequency" errors={errors.digestFrequency}>
-        <Select name="digestFrequency" defaultValue={digestFrequency}>
-          <option value="off">Off</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </Select>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-[13px] font-medium text-ink-secondary">Alert types</legend>
+        {NOTIFICATION_TYPE_OPTIONS.map(([key, label]) => (
+          <label key={key} className="flex items-center gap-2 text-[13px] text-ink">
+            <input
+              type="checkbox"
+              name={`type_${key}`}
+              defaultChecked={types[key] !== false}
+              className="h-4 w-4 accent-[var(--accent-primary)]"
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <FormField
+        label="Large-bill threshold"
+        help="Bills at or above this amount get an individual heads-up (default RM 500)."
+        errors={errors.largeBill}
+      >
+        <Input name="largeBill" inputMode="decimal" defaultValue={largeBill} className="num" />
       </FormField>
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Quiet hours start" errors={errors.quietHoursStart}>
@@ -204,6 +230,14 @@ export function NotificationsForm({
           <Input name="quietHoursEnd" type="time" defaultValue={quietHoursEnd} />
         </FormField>
       </div>
+      <FormField label="Digest frequency" errors={errors.digestFrequency}>
+        <Select name="digestFrequency" defaultValue={digestFrequency}>
+          <option value="off">Off</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </Select>
+      </FormField>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : t("common.save")}
       </Button>

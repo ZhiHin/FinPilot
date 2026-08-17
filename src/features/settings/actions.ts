@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { uuidv7 } from "@/lib/ids";
-import { ok, type Result } from "@/lib/result";
+import { parseAmountToMinor } from "@/lib/money";
+import { err, ok, type Result } from "@/lib/result";
 import { zodToErr } from "@/lib/zod";
 import { requireUser } from "@/server/auth/guard";
 import { getDb } from "@/server/db/client";
@@ -90,6 +91,15 @@ export async function updateThemeAction(theme: unknown): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+const NOTIFICATION_TYPES = [
+  "bill_cluster",
+  "upcoming_bill",
+  "subscription_change",
+  "budget_pace",
+  "goal_behind",
+  "duplicate_service",
+] as const;
+
 export async function updateNotificationsAction(
   _prev: SettingsFormState,
   formData: FormData,
@@ -99,14 +109,32 @@ export async function updateNotificationsAction(
     digestFrequency: formData.get("digestFrequency"),
     quietHoursStart: formData.get("quietHoursStart") ?? "",
     quietHoursEnd: formData.get("quietHoursEnd") ?? "",
+    largeBill: (formData.get("largeBill") as string) ?? "",
   });
   if (!parsed.success) return zodToErr(parsed.error);
+
+  let largeBillMinor: number | undefined;
+  if (parsed.data.largeBill && parsed.data.largeBill.trim() !== "") {
+    const minor = parseAmountToMinor(parsed.data.largeBill);
+    if (minor === null || minor < 0) {
+      return err("invalid_input", "Please check the form.", {
+        largeBill: ["Enter an amount like 500.00 (or leave empty for the default)."],
+      });
+    }
+    largeBillMinor = minor;
+  }
+  const types: Record<string, boolean> = {};
+  for (const type of NOTIFICATION_TYPES) {
+    types[type] = formData.get(`type_${type}`) === "on";
+  }
 
   await preferencesRepo.update(getDb(), user.id, {
     notificationPrefs: {
       digestFrequency: parsed.data.digestFrequency,
       quietHoursStart: parsed.data.quietHoursStart || null,
       quietHoursEnd: parsed.data.quietHoursEnd || null,
+      ...(largeBillMinor !== undefined ? { largeBillMinor } : {}),
+      types,
     },
   });
   await auditSettings(user.id, "settings.notifications_updated");

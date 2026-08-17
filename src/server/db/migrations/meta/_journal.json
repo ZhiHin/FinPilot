@@ -71,6 +71,20 @@
                         "when":  1786951009097,
                         "tag":  "0009_planning_guards",
                         "breakpoints":  true
+                    },
+                    {
+                        "idx":  10,
+                        "version":  "7",
+                        "when":  1786951010097,
+                        "tag":  "0010_recurring",
+                        "breakpoints":  true
+                    },
+                    {
+                        "idx":  11,
+                        "version":  "7",
+                        "when":  1786951011097,
+                        "tag":  "0011_recurring_guards",
+                        "breakpoints":  true
                     }
                 ]
 }

@@ -372,8 +372,10 @@ export async function seedDemoFinancial(
       categoryId: cat("Streaming & subscriptions"),
       categorizationSource: "default",
     });
-    // BNPL phone installment ×6 from month 2 (spec: 4 observed by end of data, 2 remaining).
-    if (index >= 2 && index < 8 && index - 2 < 6) {
+    // BNPL phone installment: 3 historical payments here; the 4th lands in the
+    // current month below (spec: 4 observed, 2 remaining once the user confirms
+    // the 6-payment total on the Recurring screen).
+    if (index >= 5) {
       bulk({
         accountId: card.id,
         type: "expense",
@@ -661,6 +663,58 @@ export async function seedDemoFinancial(
         status: "pending",
       }),
       "pending",
+    );
+    serviceCount += 1;
+  }
+
+  /* ------------------- current-month recurring bills (Phase 6) -------------------
+     Bills whose day already passed this month post normally, so the Recurring
+     screen shows realistic "next due" dates next month (and the Sep 1–5
+     cluster from rent/fitness/unifi). Bills due later this month stay unseen. */
+  const currentPostedDayCap = Math.max(1, td - 2);
+  for (const spec of RECURRING) {
+    if (spec.day > currentPostedDayCap) continue;
+    must(
+      await transactionsService.create(db, userId, {
+        accountId: accountByKey[spec.account].id,
+        type: spec.type ?? "expense",
+        amountMinor: -spec.amount,
+        txnDate: day(currentMonth, spec.day),
+        description: spec.description,
+        merchantName: spec.merchant ?? undefined,
+        categoryId: cat(spec.category),
+      }),
+      `current-month ${spec.description}`,
+    );
+    serviceCount += 1;
+  }
+  if (15 <= currentPostedDayCap) {
+    must(
+      await transactionsService.create(db, userId, {
+        accountId: card.id,
+        type: "expense",
+        amountMinor: -2390,
+        txnDate: day(currentMonth, 15),
+        description: "SPOTIFY P2E4A8",
+        merchantName: "Spotify",
+        categoryId: cat("Streaming & subscriptions"),
+      }),
+      "current-month spotify",
+    );
+    serviceCount += 1;
+  }
+  if (6 <= currentPostedDayCap) {
+    must(
+      await transactionsService.create(db, userId, {
+        accountId: card.id,
+        type: "expense",
+        amountMinor: -29158,
+        txnDate: day(currentMonth, 6),
+        description: "SPAYLATER INSTALMENT 4821",
+        merchantName: "SPayLater",
+        categoryId: cat("Electronics"),
+      }),
+      "current-month bnpl",
     );
     serviceCount += 1;
   }

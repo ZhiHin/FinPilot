@@ -36,6 +36,7 @@ export const notificationPrefsSchema = z.object({
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM.")
     .optional()
     .or(z.literal("")),
+  largeBill: z.string().optional().or(z.literal("")),
   quietHoursEnd: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM.")

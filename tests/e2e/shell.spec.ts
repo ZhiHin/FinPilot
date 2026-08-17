@@ -26,8 +26,8 @@ test.describe("responsive application shell", () => {
   });
 
   test("placeholder destinations are honestly labeled with their phase", async ({ page }) => {
-    await page.goto("/recurring");
-    await expect(page.getByText(/arrives in Phase 6/i)).toBeVisible();
+    await page.goto("/scenarios");
+    await expect(page.getByText(/arrives in Phase 9/i)).toBeVisible();
     await page.goto("/insights");
     await expect(page.getByText(/arrives in Phase 8/i)).toBeVisible();
   });

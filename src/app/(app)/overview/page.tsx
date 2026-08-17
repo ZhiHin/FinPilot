@@ -28,6 +28,7 @@ import { accountsService } from "@/server/services/accounts";
 import { analyticsService, type PeriodTotals } from "@/server/services/analytics";
 import { budgetsService } from "@/server/services/budgets";
 import { goalsService } from "@/server/services/goals";
+import { recurringService } from "@/server/services/recurring";
 import { transactionsService } from "@/server/services/transactions";
 
 export const metadata: Metadata = { title: t("overview.title") };
@@ -91,6 +92,9 @@ export default async function OverviewPage({
     budgetsService.list(db, user.id),
     goalsService.listWithProgress(db, user.id, today),
   ]);
+  // Phase 6: upcoming recurring bills (next 14 days) — read-only, no scan here.
+  const upcoming = await recurringService.upcoming(db, user.id, { from: today, days: 14 });
+  const upcomingDue = upcoming.due.slice(0, 5);
 
   // Phase 5: compact budget snapshot (first active budget, current cycle).
   const activeBudget = budgetList.find((b) => b.isActive) ?? null;
@@ -524,9 +528,9 @@ export default async function OverviewPage({
           </>
         )}
 
-        {/* ---- Phase 5: budget + goals snapshots (real data, never fake) ---- */}
+        {/* ---- Phase 5/6: budget, goals, and upcoming-bill snapshots (real data) ---- */}
         {hasAccounts ? (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card>
               <CardHeader className="flex items-center justify-between">
                 <CardTitle>Budget this cycle</CardTitle>
@@ -669,6 +673,60 @@ export default async function OverviewPage({
                       </p>
                     ) : null}
                   </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <CardTitle>Upcoming bills</CardTitle>
+                <Link
+                  href="/recurring"
+                  className="text-[12.5px] font-medium text-accent underline underline-offset-2 hover:no-underline"
+                >
+                  Open recurring
+                </Link>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                {upcoming.clusters.length > 0 ? (
+                  <Banner variant="attention">
+                    {upcoming.clusters[0].count} bills cluster around{" "}
+                    {formatIsoDate(upcoming.clusters[0].start, "en-MY")} —{" "}
+                    <AmountText amountMinor={upcoming.clusters[0].totalMinor} currency="MYR" /> in
+                    total.
+                  </Banner>
+                ) : null}
+                {upcomingDue.length === 0 ? (
+                  <p className="text-[13px] text-ink-muted">
+                    No recurring bills expected in the next 14 days. Detection runs from your
+                    history on the{" "}
+                    <Link href="/recurring" className="font-medium text-accent underline">
+                      Recurring screen
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  <ul className="flex flex-col divide-y divide-hairline text-[13px]">
+                    {upcomingDue.map((bill) => (
+                      <li
+                        key={bill.id}
+                        className="flex items-baseline justify-between gap-2 py-1.5"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-ink">{bill.name}</span>
+                          <span className="text-[11.5px] text-ink-muted">
+                            {formatIsoDate(bill.nextExpectedOn, "en-MY")}
+                            {bill.source === "inferred" ? " · inferred" : ""}
+                            {bill.isInstallment ? " · installment estimate" : ""}
+                          </span>
+                        </span>
+                        <AmountText
+                          amountMinor={bill.typicalAmountMinor}
+                          currency={bill.currency}
+                          className="text-[13px]"
+                        />
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </CardContent>
             </Card>

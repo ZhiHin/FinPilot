@@ -32,6 +32,7 @@ export async function seedDemo(db: Db): Promise<{ created: boolean }> {
   await preferencesRepo.createDefaults(db, DEMO_USER.id, {
     safetyBufferMinor: 30000, // RM 300 buffer per the Phase 0 sample profile
     budgetStyle: "flexible",
+    incomePattern: { frequency: "monthly", day: 25, weekendAdjust: true },
     onboardingState: { completed: true, demo: true, currentStep: 5 },
   });
   await auditRepo.record(db, {
