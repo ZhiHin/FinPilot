@@ -48,6 +48,10 @@ export const revokeSessionSchema = z.object({
   sessionId: z.string().uuid("Invalid session."),
 });
 
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Enter your password to confirm."),
+});
+
 /** Internal redirect targets only — blocks open-redirect via ?next=. */
 export function safeInternalPath(next: string | undefined, fallback: string): string {
   if (next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\")) {

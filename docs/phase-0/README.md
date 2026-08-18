@@ -9,7 +9,9 @@ Phase 1 pushed ([../progress/phase-1.md](../progress/phase-1.md)) · Phase 2 pus
 ([../progress/phase-6.md](../progress/phase-6.md)) · Phase 7 pushed
 ([../progress/phase-7.md](../progress/phase-7.md)) · Phase 8 pushed
 ([../progress/phase-8.md](../progress/phase-8.md)) · Phase 9 pushed
-([../progress/phase-9.md](../progress/phase-9.md)).
+([../progress/phase-9.md](../progress/phase-9.md)) · Phase 10 pushed
+([../progress/phase-10.md](../progress/phase-10.md)) — **Production V1 engineering complete**;
+launch blockers tracked in [../ops/launch-checklist.md](../ops/launch-checklist.md).
 **Date:** 2026-08-16
 **Working name:** FinPilot (name, logo, and brand tokens are isolated so they can be replaced)
 
@@ -40,7 +42,7 @@ or migrations exist yet; Phase 1 begins implementation after this document set i
 | 2 | [02-ux-architecture.md](02-ux-architecture.md) | Sitemap, route map, complete screen inventory with states, written wireframes for the seven key screens |
 | 3 | [03-design-system.md](03-design-system.md) | Design direction, design-token proposal (color, type, spacing, radii, shadows, chart palette, semantic states), component inventory |
 | 4 | [04-domain-model-and-erd.md](04-domain-model-and-erd.md) | Domain model, Mermaid ERD, table-by-table constraints and indexes, migration strategy, DBeaver workflow, seed-data plan |
-| 5 | [05-technical-architecture.md](05-technical-architecture.md) | Stack, application boundaries, data-flow diagrams, AI/analytics architecture (deterministic vs generative), architecture decision records (ADR-001…ADR-016) |
+| 5 | [05-technical-architecture.md](05-technical-architecture.md) | Stack, application boundaries, data-flow diagrams, AI/analytics architecture (deterministic vs generative), architecture decision records (ADR-001…ADR-018) |
 | 6 | [06-risk-and-privacy.md](06-risk-and-privacy.md) | Privacy analysis (PDPA-oriented), threat model, failure-mode analysis, risk register |
 | 7 | [07-phase-1-backlog.md](07-phase-1-backlog.md) | Phased backlog summary for Phases 1–10, detailed Phase 1 backlog with user stories, acceptance criteria, and test plan |
 

@@ -58,7 +58,10 @@ export function ChartCard({
             <div className="overflow-x-auto">{table}</div>
           </TabsContent>
         </Tabs>
-        {footer}
+        {/* `footer` arrives from a Server Component; as a bare sibling it lands
+            in the children array unkeyed and React warns. Its own wrapper keeps
+            this component's children static. */}
+        {footer ? <div>{footer}</div> : null}
       </CardContent>
     </Card>
   );

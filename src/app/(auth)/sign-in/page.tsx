@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: t("auth.signIn.title") };
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; reset?: string }>;
+  searchParams: Promise<{ next?: string; reset?: string; deletion?: string }>;
 }) {
   // Real session check (not just cookie presence): valid session goes to the app.
   const current = await getCurrentSession();
@@ -21,13 +21,17 @@ export default async function SignInPage({
     redirect(safeInternalPath(params.next, "/overview"));
   }
 
+  const notice =
+    params.reset === "done"
+      ? t("auth.reset.success")
+      : params.deletion === "scheduled"
+        ? "Your account is scheduled for deletion. Sign in within 30 days to restore it — after that, everything is permanently erased."
+        : undefined;
+
   return (
     <>
       <h1 className="mb-5 text-[19px] font-semibold text-ink">{t("auth.signIn.title")}</h1>
-      <SignInForm
-        next={params.next}
-        notice={params.reset === "done" ? t("auth.reset.success") : undefined}
-      />
+      <SignInForm next={params.next} notice={notice} />
       <div className="mt-5 flex flex-col gap-2 text-[13px] text-ink-secondary">
         <Link
           href="/reset-password"

@@ -66,7 +66,8 @@ function textCell(value: string | null): string {
   return quoteCsvCell(escapeCsvText(value ?? ""));
 }
 
-function signedDecimal(amountMinor: number, currency: string): string {
+/** Signed decimal major units ("-1600.00") from stored minor units. */
+export function signedDecimal(amountMinor: number, currency: string): string {
   const magnitude = minorToAmountInput(Math.abs(amountMinor), currency);
   return amountMinor < 0 ? `-${magnitude}` : magnitude;
 }

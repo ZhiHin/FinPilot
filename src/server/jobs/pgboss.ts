@@ -1,5 +1,6 @@
 import { PgBoss } from "pg-boss";
 
+import { logError } from "../observability/logger";
 import type { JobQueue, JobSendOptions } from "./queue";
 
 /**
@@ -18,7 +19,7 @@ async function getBoss(): Promise<PgBoss> {
     }
     const boss = new PgBoss(connectionString);
     boss.on("error", (error) => {
-      console.error("[jobs] pg-boss error:", error instanceof Error ? error.message : error);
+      logError("jobs.pgboss", error);
     });
     bossPromise = boss.start();
   }
@@ -54,6 +55,12 @@ export function getJobQueue(): JobQueue {
           await handler(job.data);
         }
       });
+    },
+
+    async schedule(name: string, cron: string): Promise<void> {
+      const boss = await getBoss();
+      await ensureQueue(boss, name);
+      await boss.schedule(name, cron, {}, { tz: "Asia/Kuala_Lumpur" });
     },
 
     async stop(): Promise<void> {

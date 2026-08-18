@@ -271,6 +271,21 @@ Format: **Decision — rationale — consequences.** All accepted 2026-08-16; su
   tables never ship half-validated, and each migration is small and reviewable. All migrations stay
   forward-only, version-controlled SQL, PostgreSQL/DBeaver-compatible. *Consequence:* later phases
   own their DDL; cross-domain FKs land with the later of the two domains.
+- **ADR-018 Service-layer authorization is confirmed for Production V1; PostgreSQL RLS is not
+  adopted** *(added at the Phase 10 security review — resolves and supersedes the "must be
+  reconsidered before Production V1" clause of ADR-010, which is now closed rather than open)*.
+  The reconsideration was performed in full and recorded in
+  [../ops/security-review.md](../ops/security-review.md) §1. Reasons: the app runs on one pooled
+  role, so RLS would require `SET LOCAL` on every pool checkout — a control whose failure mode is
+  silent widening — or per-user roles the pooler cannot share; the hand-written analytics/forecast
+  CTEs and the `information_schema`-driven purge sweep would all need re-profiling; and pg-boss plus
+  migrations would need `BYPASSRLS` carve-outs. The compensating controls are stronger than "we
+  scope in code": ownership is only ever taken from the server-side session, 33 database triggers
+  reject child rows whose owner disagrees with their parent, and per-entity cross-user isolation
+  tests (including tampered ids and unauthenticated access) are CI-blocking. *Consequence:* the
+  isolation suite is a release gate — red means no release. **Revisit if** a second operator gains
+  database access, a shared/multi-tenant workspace feature lands, a third party gets direct SQL
+  access, or an IDOR-class incident occurs.
 
 ## 8. Observability & operations (MVP scope)
 
@@ -281,4 +296,6 @@ Format: **Decision — rationale — consequences.** All accepted 2026-08-16; su
 - Error tracking with scrubbed payloads; alert on auth anomaly spikes, job dead-letters, and AI
   fallback rate.
 - Backup/restore runbook + deployment configuration written in Phase 10 (documented target: Docker
-  container + managed Postgres with PITR).
+  container + managed Postgres with PITR). *Shipped:* [../ops/observability.md](../ops/observability.md),
+  [../ops/backup-restore.md](../ops/backup-restore.md) (drill executed),
+  [../ops/deployment.md](../ops/deployment.md), [../ops/incident-response.md](../ops/incident-response.md).

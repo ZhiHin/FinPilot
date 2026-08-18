@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import { ok, type Result } from "@/lib/result";
 import { zodToErr } from "@/lib/zod";
 import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/server/auth/cookies";
-import { requireUser } from "@/server/auth/guard";
+import { getCurrentSession, requireUser } from "@/server/auth/guard";
 import { getAuthService } from "@/server/auth/instance";
 import { getAuthContext } from "@/server/auth/request-context";
 import {
   changePasswordSchema,
+  deleteAccountSchema,
   requestResetSchema,
   resetPasswordSchema,
   revokeSessionSchema,
@@ -135,4 +136,41 @@ export async function revokeOtherSessionsAction(): Promise<AuthFormState> {
   return ok({
     message: count > 0 ? `Signed out ${count} other session(s).` : "No other sessions.",
   });
+}
+
+/**
+ * Staged account deletion (Phase 10): password-confirmed; the service revokes
+ * every session, so on success we clear the cookie and land on sign-in with
+ * the recovery-window notice.
+ */
+export async function requestAccountDeletionAction(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const { user } = await requireUser();
+  const parsed = deleteAccountSchema.safeParse({ password: formData.get("password") });
+  if (!parsed.success) return zodToErr(parsed.error);
+
+  const result = await getAuthService().requestAccountDeletion(
+    user.id,
+    parsed.data,
+    await getAuthContext(),
+  );
+  if (!result.ok) return result;
+
+  await clearSessionCookie();
+  redirect("/sign-in?deletion=scheduled");
+}
+
+/**
+ * Restore gate action. Uses getCurrentSession directly — requireUser would
+ * bounce pending_purge users back to /restore and abort the action.
+ */
+export async function restoreAccountAction(): Promise<void> {
+  const current = await getCurrentSession();
+  if (!current) redirect("/sign-in");
+  if (current.user.status === "pending_purge") {
+    await getAuthService().cancelAccountDeletion(current.user.id, await getAuthContext());
+  }
+  redirect("/overview");
 }

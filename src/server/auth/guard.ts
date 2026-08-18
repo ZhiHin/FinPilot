@@ -26,5 +26,10 @@ export async function requireUser(): Promise<CurrentSession> {
   if (!current) {
     redirect("/sign-in");
   }
+  // Deletion-scheduled accounts see only the restore gate (Phase 10) —
+  // every page, action, and API route funnels through here.
+  if (current.user.status === "pending_purge") {
+    redirect("/restore");
+  }
   return current;
 }

@@ -659,4 +659,5 @@ path for schema or data in shared environments.
    through migration files; data fixes go through audited scripts. Local scratch databases are the
    exception.
 6. **Backups:** before running any migration against a non-local database, take a `pg_dump`
-   (documented commands in `docs/ops/backup-restore.md`, written in Phase 10).
+   (documented commands in [../ops/backup-restore.md](../ops/backup-restore.md), written and
+   drilled in Phase 10).

@@ -53,4 +53,32 @@ export const usersRepo = {
       .returning({ id: users.id });
     return result.length > 0;
   },
+
+  /** Staged deletion state machine (Phase 10): active <-> pending_purge. */
+  async setStatus(
+    db: Db,
+    userId: string,
+    input: { status: "active" | "deactivated" | "pending_purge"; purgeAfter: Date | null },
+  ): Promise<boolean> {
+    const result = await db
+      .update(users)
+      .set({ status: input.status, purgeAfter: input.purgeAfter, updatedAt: sql`now()` })
+      .where(and(eq(users.id, userId), isNull(users.deletedAt)))
+      .returning({ id: users.id });
+    return result.length > 0;
+  },
+
+  /** Users whose recovery window has ended and are due for the purge job. */
+  async listDueForPurge(db: Db, now: Date): Promise<UserRow[]> {
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.status, "pending_purge"),
+          isNull(users.deletedAt),
+          sql`${users.purgeAfter} <= ${now}`,
+        ),
+      );
+  },
 } as const;

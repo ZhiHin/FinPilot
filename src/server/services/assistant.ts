@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { aiComplete, aiAvailability, logFallback } from "@/server/ai/gateway";
+import { aiComplete, aiAvailability, logFallback, type RefusalReason } from "@/server/ai/gateway";
 import { PHRASING_PROMPT, TOOL_SELECTION_PROMPT } from "@/server/ai/prompts";
 import { TOOL_NAMES, TOOL_REGISTRY, type ToolCard } from "@/server/ai/tools";
 import { verifyNumericClaims } from "@/server/ai/verify";
@@ -21,7 +21,7 @@ import type { Db } from "@/server/db/client";
 export type AssistantAnswer =
   | { kind: "card"; card: ToolCard; conclusion: string; phrasedBy: "model" | "deterministic" }
   | { kind: "refusal"; message: string }
-  | { kind: "unavailable"; reason: "privacy_mode" | "no_consent" | "disabled" };
+  | { kind: "unavailable"; reason: RefusalReason };
 
 const toolChoiceSchema = z.object({
   tool: z.string(),

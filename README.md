@@ -4,10 +4,17 @@ An AI personal finance manager for Malaysia — understand where your money went
 safely spend, anticipate upcoming expenses, and test decisions before making them. Educational
 information, not financial advice; FinPilot never moves money.
 
-**Status:** Phase 3 complete (CSV statement import with review, idempotent commit, and undo — on
-top of accounts, categories, and transactions). Product docs live in
-[`docs/phase-0/`](docs/phase-0/README.md); phase progress in
-[`docs/progress/`](docs/progress/phase-3.md). The demo login (`db:seed:demo`) is
+**Status:** **Phase 10 complete — Production V1 engineering done.** All ten phases have shipped:
+accounts and ledger, CSV import, dashboard and analytics, budgets and goals, recurring and
+notifications, deterministic intelligence, explainable AI, Scenario Lab and Decision Journal, and
+now hardening — full data export, staged account deletion, security review, performance profile,
+observability, and deployment. Remaining launch blockers (a production mailer, legal review, an AI
+provider agreement, incident contacts) are tracked honestly in
+[`docs/ops/launch-checklist.md`](docs/ops/launch-checklist.md).
+
+Product docs live in [`docs/phase-0/`](docs/phase-0/README.md), operations runbooks in
+[`docs/ops/`](docs/ops/launch-checklist.md), and phase-by-phase progress in
+[`docs/progress/`](docs/progress/phase-10.md). The demo login (`db:seed:demo`) is
 `aisyah.demo@finpilot.test` / `demo-aisyah-2026` — 8 months of synthetic Malaysian data. Synthetic
 statement fixtures for trying the import wizard live in `tests/fixtures/statements/`.
 
@@ -50,6 +57,7 @@ migrate/seed as above.
 | `ANTHROPIC_API_KEY` | with `anthropic` | API key for the Anthropic adapter |
 | `AI_MODEL` | no | Model override for the Anthropic adapter (default `claude-sonnet-5`) |
 | `AI_DISABLED` | no | `1` = kill switch: every AI call refuses at the gateway regardless of provider/consent |
+| `LOG_LEVEL` | no | pino level for structured server logs (default `info`) |
 
 AI features (assistant, insight phrasing) additionally require per-user consent in
 Settings → Privacy & AI, and Privacy Mode always overrides everything: with it on, zero
@@ -91,3 +99,17 @@ See `docs/phase-0/05-technical-architecture.md`. Short version: `src/app` routes
 `src/components` design system (domain-free), `src/features/*` domain UI + server actions,
 `src/server/{auth,db}` framework-independent core, `src/lib` shared pure modules (money, dates,
 ids, i18n, result). Module boundaries are lint-enforced, as is the ban on float money math.
+
+## Running it in production
+
+`Dockerfile` builds the deployable image (Next.js standalone output, non-root, health-checked).
+The runbooks in [`docs/ops/`](docs/ops/deployment.md) cover it end to end:
+
+| Document | Covers |
+|---|---|
+| [deployment.md](docs/ops/deployment.md) | Requirements, environment variables, image build, release procedure, smoke test |
+| [backup-restore.md](docs/ops/backup-restore.md) | Backup commands, restore procedure, verification queries, drill record |
+| [observability.md](docs/ops/observability.md) | Health endpoint, scrubbed structured logs, audit trail queries, recommended monitors |
+| [incident-response.md](docs/ops/incident-response.md) | Severity levels, containment, scoping queries, PDPA breach notification |
+| [security-review.md](docs/ops/security-review.md) | Phase 10 review, findings, and the recorded RLS decision (ADR-018) |
+| [launch-checklist.md](docs/ops/launch-checklist.md) | Production V1 sign-off and the open launch blockers |

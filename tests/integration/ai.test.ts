@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { uuidv7 } from "@/lib/ids";
 import { isErr, isOk, type Result } from "@/lib/result";
 import { createDb, type Db } from "@/server/db/client";
-import { aiComplete } from "@/server/ai/gateway";
+import { AI_CALLS_PER_HOUR, aiComplete } from "@/server/ai/gateway";
 import { accountsService, type AccountRow } from "@/server/services/accounts";
 import { assistantService } from "@/server/services/assistant";
 import { categoriesService } from "@/server/services/categories";
@@ -201,6 +201,55 @@ describe("gateway (the single AI chokepoint)", () => {
       status: "ok",
     });
     expect(Number(logs.rows[0].input_tokens)).toBeGreaterThan(0);
+  });
+
+  test("per-user hourly call budget refuses further provider calls (R7)", async () => {
+    // Backfill the budget window with provider-reaching calls for a fresh user.
+    const budgetUser = uuidv7();
+    await testDb.pool.query(
+      `insert into users (id, email, password_hash) values ($1, 'budget@example.com', 'x')`,
+      [budgetUser],
+    );
+    await testDb.pool.query(
+      `insert into user_preferences (user_id, ai_consent_at) values ($1, now())`,
+      [budgetUser],
+    );
+    await testDb.pool.query(
+      `insert into ai_requests (id, user_id, feature, provider, model, prompt_version, status)
+       select gen_random_uuid(), $1, 'assistant', 'stub', 'deterministic-stub-v1', 'x@v1', 'ok'
+       from generate_series(1, ${AI_CALLS_PER_HOUR}) i`,
+      [budgetUser],
+    );
+
+    const outcome = await aiComplete(db, {
+      userId: budgetUser,
+      feature: "assistant",
+      promptVersion: "tool-selection@v1",
+      request: { system: "S", messages: [{ role: "user", content: "hi" }], maxTokens: 20 },
+    });
+    expect(outcome.status).toBe("refused");
+    if (outcome.status === "refused") expect(outcome.reason).toBe("rate_limited");
+
+    // The refusal is logged and does not itself consume budget.
+    const refusals = await testDb.pool.query(
+      `select error_redacted from ai_requests where user_id = $1 and status = 'refused'`,
+      [budgetUser],
+    );
+    expect(refusals.rowCount).toBe(1);
+    expect(refusals.rows[0].error_redacted).toBe("rate_limited");
+
+    // Another user is unaffected: the budget is per user.
+    const other = await aiComplete(db, {
+      userId: userA,
+      feature: "insight",
+      promptVersion: "phrasing@v1",
+      request: {
+        system: "S",
+        messages: [{ role: "user", content: "FACTS: none." }],
+        maxTokens: 20,
+      },
+    });
+    expect(other.status).toBe("ok");
   });
 });
 

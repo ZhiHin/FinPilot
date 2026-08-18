@@ -64,7 +64,9 @@ export function AssistantPanel({ suggestedQuestions }: { suggestedQuestions: str
             ? "Privacy Mode is on, so the assistant is off — no data leaves FinPilot. Every deterministic feature keeps working."
             : state.answer.reason === "no_consent"
               ? "The assistant needs your AI consent. You can grant it in Settings → Privacy & AI."
-              : "AI features are currently disabled."}
+              : state.answer.reason === "rate_limited"
+                ? "You've reached this hour's limit for AI questions. Deterministic features keep working — try again shortly."
+                : "AI features are currently disabled."}
         </Banner>
       ) : null}
 

@@ -45,6 +45,7 @@ const SESSION_IDLE_MS = 14 * 24 * 60 * 60_000; // 14 days
 const SESSION_ABSOLUTE_MS = 30 * 24 * 60 * 60_000; // 30 days
 const SESSION_TOUCH_THROTTLE_MS = 5 * 60_000;
 const RESET_TOKEN_TTL_MS = 30 * 60_000; // 30 minutes
+export const DELETION_RECOVERY_DAYS = 30;
 
 // Enumeration-safe copy: identical for wrong password and unknown email.
 const GENERIC_CREDENTIALS_MESSAGE = "That email and password combination didn’t work.";
@@ -69,6 +70,16 @@ export interface AuthServiceConfig {
 export interface CurrentSession {
   user: UserRow;
   session: SessionRow;
+}
+
+/** Active users, plus pending_purge users still inside their recovery window. */
+function statusMaySignIn(user: UserRow): boolean {
+  if (user.status === "active") return true;
+  return (
+    user.status === "pending_purge" &&
+    user.purgeAfter !== null &&
+    user.purgeAfter.getTime() > Date.now()
+  );
 }
 
 export type AuthService = ReturnType<typeof createAuthService>;
@@ -200,7 +211,9 @@ export function createAuthService(config: AuthServiceConfig) {
         ? await verifyPassword(user.passwordHash, input.password)
         : (await verifyPassword(await dummyHash(), input.password), false);
 
-      if (!user || !passwordOk || user.status !== "active") {
+      // pending_purge users may sign in inside the recovery window — they land
+      // on the restore gate. Expired windows fail exactly like bad credentials.
+      if (!user || !passwordOk || !statusMaySignIn(user)) {
         await audit("auth.sign_in_failed", ctx, { subjectHash, userId: user?.id ?? null });
         return err("unauthorized", GENERIC_CREDENTIALS_MESSAGE);
       }
@@ -216,7 +229,7 @@ export function createAuthService(config: AuthServiceConfig) {
       const session = await sessionsRepo.findValidByTokenHash(db, sha256Hex(token));
       if (!session) return null;
       const user = await usersRepo.findById(db, session.userId);
-      if (!user || user.status !== "active") return null;
+      if (!user || !statusMaySignIn(user)) return null;
 
       const now = Date.now();
       const cap = session.createdAt.getTime() + SESSION_ABSOLUTE_MS;
@@ -322,6 +335,59 @@ export function createAuthService(config: AuthServiceConfig) {
       await sessionsRepo.revokeAllForUser(db, user.id);
       await audit("auth.reset_completed", ctx, { userId: user.id });
       return ok({ reset: true });
+    },
+
+    /**
+     * Staged account deletion (Phase 10, spec V4): password-confirmed request
+     * flips the user to pending_purge with a 30-day recovery window and
+     * revokes every session. The daily purge job hard-deletes after the
+     * window; signing back in before then lands on the restore gate.
+     */
+    async requestAccountDeletion(
+      userId: string,
+      input: { password: string },
+      ctx: AuthContext,
+    ): Promise<Result<{ purgeAfter: Date }>> {
+      const user = await usersRepo.findById(db, userId);
+      if (!user || user.status !== "active") {
+        return err("unauthorized", GENERIC_CREDENTIALS_MESSAGE);
+      }
+      if (!(await verifyPassword(user.passwordHash, input.password))) {
+        await audit("account.deletion_request_failed", ctx, { userId });
+        return err("invalid_input", "Please check the form.", {
+          password: ["That doesn’t match your current password."],
+        });
+      }
+
+      const purgeAfter = new Date(Date.now() + DELETION_RECOVERY_DAYS * 24 * 60 * 60_000);
+      await usersRepo.setStatus(db, userId, { status: "pending_purge", purgeAfter });
+      await sessionsRepo.revokeAllForUser(db, userId);
+      await auditRepo.record(db, {
+        id: uuidv7(),
+        userId,
+        actor: "user",
+        eventType: "account.deletion_requested",
+        entityType: "user",
+        entityId: userId,
+        diff: { purgeAfter: purgeAfter.toISOString() },
+        ipHash: ipHashFor(ctx),
+        userAgent: ctx.userAgent,
+      });
+      return ok({ purgeAfter });
+    },
+
+    /** Restores a pending_purge account inside its recovery window. */
+    async cancelAccountDeletion(
+      userId: string,
+      ctx: AuthContext,
+    ): Promise<Result<{ restored: true }>> {
+      const user = await usersRepo.findById(db, userId);
+      if (!user || user.status !== "pending_purge") {
+        return err("invalid_input", "This account isn’t scheduled for deletion.");
+      }
+      await usersRepo.setStatus(db, userId, { status: "active", purgeAfter: null });
+      await audit("account.deletion_cancelled", ctx, { userId });
+      return ok({ restored: true });
     },
 
     async changePassword(

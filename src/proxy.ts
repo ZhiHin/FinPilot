@@ -12,7 +12,8 @@ export function proxy(request: NextRequest) {
   const isAuthSurface =
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
-    pathname.startsWith("/reset-password");
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/legal"); // public pages (privacy notice)
   const hasSessionCookie = request.cookies.has(SESSION_COOKIE);
 
   if (!hasSessionCookie && !isAuthSurface && pathname !== "/") {

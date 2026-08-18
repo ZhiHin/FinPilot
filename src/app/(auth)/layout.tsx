@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { t } from "@/lib/i18n";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +22,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
       <p className="mt-6 max-w-md text-center text-[11.5px] text-ink-muted">
         {t("common.notFinancialAdvice")}
+      </p>
+      <p className="mt-2 text-center text-[11.5px]">
+        <Link
+          href="/legal/privacy"
+          className="text-ink-muted underline underline-offset-2 hover:text-ink-secondary"
+        >
+          Privacy notice · Notis privasi
+        </Link>
       </p>
     </div>
   );

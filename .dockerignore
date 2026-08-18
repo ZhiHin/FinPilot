@@ -1,0 +1,46 @@
+# The build context is the security boundary here: Next.js standalone output
+# mirrors what is present at build time, so anything excluded below simply
+# cannot end up in the image. Keeping `.env` out is the control that stops
+# secrets from being baked in — verify with `docker run --rm <image> ls -a`.
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+
+# Dependencies and build artifacts (reinstalled/rebuilt inside the image)
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+
+# Local databases, mail outbox, and test artifacts
+.pgdata*
+.dev-mail*
+test-results
+playwright-report
+blob-report
+playwright/.cache
+
+# Tests and their configuration — never needed at runtime
+tests
+playwright.config.ts
+vitest.config.ts
+
+# Docs and agent/editor metadata
+docs
+*.md
+!README.md
+.git
+.github
+.vscode
+.idea
+docker-compose.yml
+
+# Kept on purpose: package.json, package-lock.json, next.config.ts,
+# tsconfig.json, postcss.config.mjs, eslint.config.mjs, drizzle.config.ts,
+# public/, src/ (including src/server/db/migrations for the migrate stage),
+# and scripts/ (npm run db:migrate).

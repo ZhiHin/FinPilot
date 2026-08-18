@@ -5,7 +5,11 @@ import { isOk, type Result } from "@/lib/result";
 import { createDb, type Db } from "@/server/db/client";
 import { auditRepo } from "@/server/db/repositories/audit";
 import { accountsService, type AccountRow } from "@/server/services/accounts";
-import { EXPORTS_PER_HOUR, exportsService } from "@/server/services/exports";
+import {
+  ACCOUNT_EXPORTS_PER_HOUR,
+  EXPORTS_PER_HOUR,
+  exportsService,
+} from "@/server/services/exports";
 import { transactionsService } from "@/server/services/transactions";
 
 import { createTestDatabase, type TestDatabase } from "./harness";
@@ -140,5 +144,111 @@ describe("exportsService.exportTransactionsCsv", () => {
 
     // Another user is unaffected (per-user limit).
     expect(isOk(await exportsService.exportTransactionsCsv(db, userB, {}))).toBe(true);
+  });
+});
+
+describe("exportsService.exportAccountArchive (Phase 10, spec V4)", () => {
+  beforeAll(async () => {
+    // A hostile tag name and a journal entry broaden the entity coverage.
+    await testDb.pool.query(`insert into tags (id, user_id, name) values ($1, $2, $3)`, [
+      uuidv7(),
+      userA,
+      "=SUM(A1:A9)",
+    ]);
+    await testDb.pool.query(
+      `insert into journal_entries (id, user_id, kind, title, starts_on)
+       values ($1, $2, 'life_event', 'Wedding season', '2026-06-01')`,
+      [uuidv7(), userA],
+    );
+  });
+
+  test("contains one CSV per entity plus profile and manifest", async () => {
+    const archive = unwrap(await exportsService.exportAccountArchive(db, userA), "archive");
+    const names = archive.files.map((f) => f.name);
+    for (const expected of [
+      "accounts.csv",
+      "categories.csv",
+      "category_groups.csv",
+      "tags.csv",
+      "merchants.csv",
+      "transactions.csv",
+      "transaction_splits.csv",
+      "transaction_links.csv",
+      "budgets.csv",
+      "budget_periods.csv",
+      "budget_allocations.csv",
+      "savings_goals.csv",
+      "goal_contributions.csv",
+      "recurring_patterns.csv",
+      "subscriptions.csv",
+      "notifications.csv",
+      "insights.csv",
+      "scenarios.csv",
+      "scenario_events.csv",
+      "journal_entries.csv",
+      "journal_links.csv",
+      "categorization_rules.csv",
+      "import_jobs.csv",
+      "attachments.csv",
+      "audit.csv",
+      "profile.json",
+      "manifest.json",
+    ]) {
+      expect(names).toContain(expected);
+    }
+
+    const manifest = JSON.parse(archive.files.find((f) => f.name === "manifest.json")!.content) as {
+      files: Array<{ name: string; rows: number; truncated: boolean }>;
+    };
+    expect(manifest.files.find((f) => f.name === "transactions.csv")?.rows).toBe(2);
+    expect(manifest.files.every((f) => !f.truncated)).toBe(true);
+  });
+
+  test("rows carry ids, amounts, and escaped hostile text; never other users' data or secrets", async () => {
+    const archive = unwrap(await exportsService.exportAccountArchive(db, userA), "archive");
+    const byName = new Map(archive.files.map((f) => [f.name, f.content]));
+
+    const transactions = byName.get("transactions.csv")!;
+    expect(transactions).toContain("ZUS Coffee");
+    expect(transactions).toContain("-12.90");
+    expect(transactions).toContain("'=HYPERLINK");
+    expect(transactions).toContain("'@steal");
+    expect(transactions).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
+
+    expect(byName.get("tags.csv")).toContain("'=SUM(A1:A9)");
+    expect(byName.get("journal_entries.csv")).toContain("Wedding season");
+    expect(byName.get("accounts.csv")).toContain("Export main");
+
+    const profile = JSON.parse(byName.get("profile.json")!) as {
+      user: { email: string };
+      preferences: { currency: string } | null;
+    };
+    expect(profile.user.email).toBe("export-a@example.com");
+    expect(profile.preferences).toBeNull(); // raw-seeded user has no prefs row
+
+    const everything = archive.files.map((f) => f.content).join("\n");
+    expect(everything).not.toContain("B secret salary");
+    expect(everything).not.toContain("B account");
+    expect(everything).not.toMatch(/password_?hash/i);
+    expect(everything).not.toMatch(/token_?hash/i);
+    expect(everything).not.toMatch(/ip_?hash/i);
+  });
+
+  test("audits with counts only and rate limits per user", async () => {
+    const events = await auditRepo.countRecentEvents(db, {
+      eventType: "export.account",
+      since: new Date(Date.now() - 60_000),
+      userId: userA,
+    });
+    expect(events).toBeGreaterThanOrEqual(2);
+
+    for (let i = events; i < ACCOUNT_EXPORTS_PER_HOUR; i++) {
+      unwrap(await exportsService.exportAccountArchive(db, userA), `fill ${i}`);
+    }
+    const blocked = await exportsService.exportAccountArchive(db, userA);
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) expect(blocked.error.code).toBe("rate_limited");
+
+    expect(isOk(await exportsService.exportAccountArchive(db, userB))).toBe(true);
   });
 });

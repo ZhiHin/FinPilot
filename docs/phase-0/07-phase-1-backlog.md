@@ -23,6 +23,13 @@ screens, isolation tests for every new entity).
 | **9** | Production V1 | Scenario/journal schema; Scenario Lab (save/compare/uncertainty), Decision Journal, outcome reviews | Scenario writes touch no real records (invariant test); journal exclusions change baselines correctly |
 | **10** | Production V1 ✅ | Security review (incl. recorded RLS reconsideration, ADR-010), performance, a11y pass, export/deletion, backup/restore docs, observability, deployment, regression | **Production V1 acceptance (spec §6) green**; launch checklist incl. PDPA items signed off |
 
+*(Phase 10 shipped — see [../progress/phase-10.md](../progress/phase-10.md). V1–V5 verified; the
+RLS reconsideration is decided and recorded as **ADR-018**; V6's checklist is written and signed
+off as **engineering-complete with four launch blockers open** — production mailer, legal review of
+the bilingual privacy notice, AI provider agreement, incident contacts —
+[../ops/launch-checklist.md](../ops/launch-checklist.md) §1. Phase 10 added no tables: staged
+deletion uses the `users.status`/`purge_after` columns migrated in Phase 1.)*
+
 Dependencies are strictly forward; the only intentional back-reference is Phase 8 upgrading Phase 7's
 deterministic insight phrasing.
 

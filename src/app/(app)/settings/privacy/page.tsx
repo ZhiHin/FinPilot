@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Banner } from "@/components/ui/banner";
 import { AiConsentForm, PrivacyForm } from "@/features/settings/forms";
@@ -39,6 +40,16 @@ export default async function PrivacySettingsPage() {
           <code>ANTHROPIC_API_KEY</code>), and swapping providers changes nothing outside the
           adapter layer. Privacy Mode always wins: with it on, zero external AI calls are possible.
         </Banner>
+        <p className="text-[13px] leading-6 text-ink-secondary">
+          The full{" "}
+          <Link
+            href="/legal/privacy"
+            className="text-accent underline underline-offset-2 hover:no-underline"
+          >
+            privacy notice (English &amp; Bahasa Melayu)
+          </Link>{" "}
+          covers collection, purposes, retention, and your rights.
+        </p>
       </section>
     </div>
   );

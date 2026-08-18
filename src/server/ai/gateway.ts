@@ -1,3 +1,5 @@
+import { and, eq, gte, sql } from "drizzle-orm";
+
 import { uuidv7 } from "@/lib/ids";
 import type { Db } from "@/server/db/client";
 import { preferencesRepo } from "@/server/db/repositories/preferences";
@@ -19,10 +21,35 @@ import type { AICompletionRequest, AICompletionResponse, AIProvider } from "./pr
  *   fallback (ADR-011).
  */
 
+export type RefusalReason = "privacy_mode" | "no_consent" | "disabled" | "rate_limited";
+
 export type GatewayOutcome =
   | { status: "ok"; response: AICompletionResponse; provider: string; model: string }
-  | { status: "refused"; reason: "privacy_mode" | "no_consent" | "disabled" }
+  | { status: "refused"; reason: RefusalReason }
   | { status: "error" };
+
+/**
+ * Per-user cap on provider calls per hour (risk register R7, threat model
+ * "resource abuse"). Counted from `ai_requests` — the same table the activity
+ * page shows — so the budget is auditable. Refusals and fallbacks don't count:
+ * they never reached a provider.
+ */
+export const AI_CALLS_PER_HOUR = 60;
+
+async function overCallBudget(db: Db, userId: string): Promise<boolean> {
+  const since = new Date(Date.now() - 60 * 60_000);
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(aiRequests)
+    .where(
+      and(
+        eq(aiRequests.userId, userId),
+        gte(aiRequests.createdAt, since),
+        sql`${aiRequests.status} in ('ok', 'error')`,
+      ),
+    );
+  return (row?.n ?? 0) >= AI_CALLS_PER_HOUR;
+}
 
 function resolveProvider(): AIProvider {
   if (process.env.AI_PROVIDER === "anthropic" && process.env.ANTHROPIC_API_KEY) {
@@ -99,6 +126,19 @@ export async function aiComplete(
       errorRedacted: availability.reason,
     });
     return { status: "refused", reason: availability.reason! };
+  }
+
+  if (await overCallBudget(db, input.userId)) {
+    await log(db, {
+      userId: input.userId,
+      feature: input.feature,
+      provider: provider.name,
+      model: provider.model,
+      promptVersion: input.promptVersion,
+      status: "refused",
+      errorRedacted: "rate_limited",
+    });
+    return { status: "refused", reason: "rate_limited" };
   }
 
   const start = Date.now();
