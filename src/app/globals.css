@@ -24,6 +24,7 @@
   --color-attention: var(--status-attention);
   --color-attention-soft: var(--status-attention-soft);
   --color-risk: var(--status-risk);
+  --color-risk-hover: var(--status-risk-hover);
   --color-risk-soft: var(--status-risk-soft);
   --color-info: var(--status-info);
   --color-info-soft: var(--status-info-soft);
@@ -33,6 +34,8 @@
   --radius-chip: 999px;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  --font-readout: var(--font-readout), ui-monospace, "SFMono-Regular", monospace;
 
   --shadow-raised: var(--shadow-raised);
 }
@@ -55,4 +58,182 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Instrument layer — the visual identity added in the Phase 10 design pass.
+   FinPilot's features already behave like flight instruments (safe-to-spend
+   is fuel remaining, the forecast band is a path with an uncertainty cone,
+   net position is altitude), so the surface is dressed as one: technical
+   headings, fixed-width readouts, and a horizon rule that ties pages together.
+   Everything here is presentation only — no layout structure, no copy.
+   ========================================================================== */
+
+/* Headings and instrument labels carry the voice; body text stays Inter. */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.012em;
+}
+
+/* Large figures read as an instrument readout, not as prose. */
+.num-readout {
+  font-family: var(--font-readout), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Uppercase micro-label above a title — the panel legend beside a dial. */
+.eyebrow {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* THE SIGNATURE: the horizon. A rule that fades out to the right with a tick
+   at its origin, drawn once beneath each page title. */
+.horizon {
+  position: relative;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent-primary) 0%,
+    var(--border-strong) 22%,
+    var(--border-hairline) 55%,
+    transparent 100%
+  );
+  transform-origin: left center;
+}
+.horizon::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -4px;
+  width: 2px;
+  height: 10px;
+  background: var(--accent-primary);
+}
+
+/* --- Motion ------------------------------------------------------------- */
+/* Entrances use `animation` with fill mode `both`, so a reduced-motion user
+   (whose duration is forced to ~0 by the token layer) lands on the finished
+   state instantly and content is never left hidden. */
+
+/* Transform only — never opacity. Text that fades cannot be guaranteed to
+   meet contrast while it is in flight, and a scroll-driven fade can park text
+   at partial opacity indefinitely if the reader stops mid-range. Sliding
+   carries the same sense of arrival with none of that risk. */
+@keyframes rise-in {
+  from {
+    transform: translateY(10px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes draw-horizon {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.animate-rise {
+  animation: rise-in var(--dur-enter) var(--ease-out) both;
+}
+.animate-horizon {
+  animation: draw-horizon 620ms var(--ease-out) both;
+}
+
+/* Stagger: each child enters just after the one above it. Capped at 8 so a
+   long list never turns into a slow cascade. */
+.stagger > * {
+  animation: rise-in var(--dur-enter) var(--ease-out) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 55ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 110ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 165ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 220ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 275ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 330ms;
+}
+.stagger > *:nth-child(n + 8) {
+  animation-delay: 385ms;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Scroll-driven reveal, CSS-only. Browsers without scroll timelines simply
+     render the content — there is no JS-hidden state to get stuck in. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+  }
+
+  /* Hover: the card lifts a little and its edge picks up the accent. */
+  .lift {
+    transition:
+      transform var(--dur-micro) var(--ease-out),
+      border-color var(--dur-micro) var(--ease-out),
+      box-shadow var(--dur-micro) var(--ease-out);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent-primary) 38%, var(--border-hairline));
+    box-shadow: 0 6px 20px rgb(from var(--text-primary) r g b / 0.09);
+  }
+
+  .press {
+    transition: transform var(--dur-micro) var(--ease-out);
+  }
+  .press:hover {
+    transform: scale(1.02);
+  }
+  .press:active {
+    transform: scale(0.985);
+  }
+}
+
+/* Ambient cursor glow, used only on the signed-out screens. */
+.cursor-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 40%),
+    color-mix(in srgb, var(--accent-primary) 13%, transparent),
+    transparent 68%
+  );
+  transition: opacity 400ms var(--ease-out);
 }

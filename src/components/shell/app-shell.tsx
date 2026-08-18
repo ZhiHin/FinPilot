@@ -53,13 +53,21 @@ export function AppShell({
       href={item.href}
       aria-current={isActive(item.href) ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-control px-3 py-2 text-[13px] font-medium transition-colors",
+        "relative flex items-center gap-3 rounded-control px-3 py-2 text-[13px] font-medium",
+        "transition-[background-color,color,transform] duration-150",
         isActive(item.href)
           ? "bg-accent-soft text-accent"
-          : "text-ink-secondary hover:bg-sunken hover:text-ink",
-        compact && "flex-col gap-1 px-2 py-1.5 text-[11.5px]",
+          : "text-ink-secondary hover:bg-sunken hover:text-ink motion-safe:hover:translate-x-0.5",
+        compact && "flex-col gap-1 px-2 py-1.5 text-[11.5px] motion-safe:hover:translate-x-0",
       )}
     >
+      {/* Instrument tick marking the current station. */}
+      {isActive(item.href) && !compact ? (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r bg-accent"
+        />
+      ) : null}
       <span aria-hidden>{item.icon}</span>
       <span>{item.label}</span>
     </Link>
@@ -71,14 +79,16 @@ export function AppShell({
     <div className="min-h-dvh bg-page">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-hairline bg-card px-3 py-4 lg:flex">
-        <Link href="/overview" className="mb-6 flex items-center gap-2 px-3">
+        <Link href="/overview" className="press mb-6 flex items-center gap-2.5 px-3">
           <span
             aria-hidden
             className="grid h-8 w-8 place-items-center rounded-control bg-accent text-[13px] font-bold text-on-accent"
           >
             F
           </span>
-          <span className="text-[15px] font-semibold text-ink">FinPilot</span>
+          <span className="font-display text-[16px] font-semibold tracking-tight text-ink">
+            FinPilot
+          </span>
         </Link>
         <nav aria-label="Primary" className="flex flex-col gap-0.5">
           {navPrimary.map((item) => navLink(item))}

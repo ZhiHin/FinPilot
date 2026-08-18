@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { PrivacyProvider } from "@/components/providers/privacy-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -10,10 +10,30 @@ import { preferencesRepo } from "@/server/db/repositories/preferences";
 
 import "./globals.css";
 
+/**
+ * Three type roles (design doc §5, revised at the Phase 10 visual pass):
+ * Inter keeps every dense UI surface — tables, forms, body — because nothing
+ * beats it for legibility at 13px. Archivo carries the voice in headings and
+ * instrument labels. Plex Mono is reserved for the large readouts, where
+ * fixed-width digits read like an instrument rather than prose.
+ */
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+});
+
+const archivo = Archivo({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-readout",
 });
 
 export const metadata: Metadata = {
@@ -25,8 +45,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1219" },
+    { media: "(prefers-color-scheme: light)", color: "#edf0f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1017" },
   ],
 };
 
@@ -37,8 +57,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = prefs?.theme ?? "system";
 
   return (
-    <html lang="en-MY" data-theme={theme === "system" ? undefined : theme}>
-      <body className={`${inter.variable} antialiased`}>
+    <html
+      lang="en-MY"
+      data-theme={theme === "system" ? undefined : theme}
+      data-scroll-behavior="smooth"
+    >
+      <body className={`${inter.variable} ${archivo.variable} ${plexMono.variable} antialiased`}>
         <PrivacyProvider>
           <ToastProvider>{children}</ToastProvider>
         </PrivacyProvider>

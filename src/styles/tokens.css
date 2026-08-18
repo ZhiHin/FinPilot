@@ -6,25 +6,25 @@
  */
 
 :root {
-  /* Canvas & surfaces */
-  --surface-page: #f7f6f3;
-  --surface-card: #fdfdfc;
+  /* Canvas & surfaces — cool instrument glass rather than warm paper. */
+  --surface-page: #edf0f5;
+  --surface-card: #fbfcfe;
   --surface-raised: #ffffff;
-  --surface-sunken: #f1f0ec;
+  --surface-sunken: #e3e8f0;
   --border-hairline: rgba(23, 33, 53, 0.1);
   --border-strong: rgba(23, 33, 53, 0.22);
 
   /* Text (muted verified ≥4.5:1 on page and card surfaces) */
   --text-primary: #172135;
   --text-secondary: #4a5468;
-  --text-muted: #626c82;
+  --text-muted: #5b6478;
   --text-on-accent: #ffffff;
 
-  /* Brand & interaction */
-  --accent-primary: #2e4e85;
-  --accent-primary-hover: #263f6c;
-  --accent-primary-soft: #e9eef7;
-  --focus-ring: #2e4e85;
+  /* Brand & interaction — "horizon": deeper and cooler than a corporate navy. */
+  --accent-primary: #17496f;
+  --accent-primary-hover: #0f3856;
+  --accent-primary-soft: #e2ebf3;
+  --focus-ring: #17496f;
 
   /* Semantic status (always paired with icon + label, never color alone) */
   --status-positive: #0e7a4d;
@@ -32,6 +32,9 @@
   --status-attention: #9a6208;
   --status-attention-soft: #fbf1de;
   --status-risk: #b93438;
+  /* Solid hover shade: dimming the button with opacity blends the label into
+     the background and drops white-on-red below 4.5:1. */
+  --status-risk-hover: #9d2a2e;
   --status-risk-soft: #f9e9e9;
   --status-info: #2e4e85;
   --status-info-soft: #e9eef7;
@@ -56,14 +59,19 @@
   --radius-card: 14px;
   --radius-control: 10px;
   --radius-chip: 999px;
+
+  /* Motion (design doc §6: 150ms micro, entrances longer, never looping) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 150ms;
+  --dur-enter: 460ms;
 }
 
 /* Dark palette — selected steps, not an inversion (design doc §3). */
 [data-theme="dark"] {
-  --surface-page: #0f1219;
-  --surface-card: #1a1e29;
-  --surface-raised: #232838;
-  --surface-sunken: #0b0e14;
+  --surface-page: #0d1017;
+  --surface-card: #171b26;
+  --surface-raised: #212635;
+  --surface-sunken: #080b11;
   --border-hairline: rgba(255, 255, 255, 0.1);
   --border-strong: rgba(255, 255, 255, 0.22);
 
@@ -71,18 +79,19 @@
   --text-secondary: #b7becd;
   --text-muted: #8a92a4;
   /* Dark ink on the light-blue dark-mode accent (white would be ~2.5:1). */
-  --text-on-accent: #0f1219;
+  --text-on-accent: #0d1017;
 
-  --accent-primary: #7fa3e0;
-  --accent-primary-hover: #94b3e8;
-  --accent-primary-soft: #243350;
-  --focus-ring: #7fa3e0;
+  --accent-primary: #74b0d8;
+  --accent-primary-hover: #8dc1e4;
+  --accent-primary-soft: #1c3346;
+  --focus-ring: #74b0d8;
 
   --status-positive: #4cc38a;
   --status-positive-soft: #143627;
   --status-attention: #e8b34b;
   --status-attention-soft: #3a2d12;
   --status-risk: #e5787b;
+  --status-risk-hover: #f0908f;
   --status-risk-soft: #3d1a1b;
   --status-info: #7fa3e0;
   --status-info-soft: #243350;
@@ -106,22 +115,22 @@
 /* System dark, unless the user explicitly chose light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
-    --surface-page: #0f1219;
-    --surface-card: #1a1e29;
-    --surface-raised: #232838;
-    --surface-sunken: #0b0e14;
+    --surface-page: #0d1017;
+    --surface-card: #171b26;
+    --surface-raised: #212635;
+    --surface-sunken: #080b11;
     --border-hairline: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.22);
 
     --text-primary: #f2f4f8;
     --text-secondary: #b7becd;
     --text-muted: #8a92a4;
-    --text-on-accent: #0f1219;
+    --text-on-accent: #0d1017;
 
-    --accent-primary: #7fa3e0;
-    --accent-primary-hover: #94b3e8;
-    --accent-primary-soft: #243350;
-    --focus-ring: #7fa3e0;
+    --accent-primary: #74b0d8;
+    --accent-primary-hover: #8dc1e4;
+    --accent-primary-soft: #1c3346;
+    --focus-ring: #74b0d8;
 
     --status-positive: #4cc38a;
     --status-positive-soft: #143627;

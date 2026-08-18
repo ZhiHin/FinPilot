@@ -118,8 +118,18 @@ Binding rules recorded from validation:
 
 ## 5. Typography
 
-- **One variable sans-serif for everything: Inter (variable)**, self-hosted via `next/font` (no
-  external font CDN). Swappable brand parameter.
+*(Revised at the Phase 10 visual pass — supersedes the original "one font for everything" rule.)*
+
+- **Three type roles**, all self-hosted via `next/font` (no external font CDN):
+  - **Inter** — every dense UI surface: body, tables, forms, labels. Unchanged, because nothing
+    beats it for legibility at 13px, and it keeps the data-heavy screens calm.
+  - **Archivo** — headings (`h1`–`h3`) and instrument labels (`.eyebrow`). Carries the voice.
+  - **IBM Plex Mono** — large figures only (`.num-readout`): safe-to-spend, stat tiles. Fixed-width
+    digits make a headline number read as an instrument readout rather than as prose. Dense table
+    figures stay Inter with `tabular-nums` — a mono face at 13px across a wide table costs more in
+    width than it returns in character.
+- **`.eyebrow`** — 11px uppercase Archivo, `0.14em` tracking, `--text-muted`. The panel legend above
+  a title or figure.
 - Financial figures always set `font-variant-numeric: tabular-nums lining-nums` via the `.num`
   utility / `AmountText` component; column-aligned, never letter-spaced.
 - Line length target 60–75ch for prose; UI text never justified.
@@ -145,7 +155,21 @@ Binding rules recorded from validation:
 - **Elevation:** borders over shadows. `--shadow-card: none` (hairline border instead);
   `--shadow-raised: 0 8px 24px rgba(15,18,25,0.10)` for drawers/dialogs/popovers only.
 - **Motion:** 150ms ease-out for micro-interactions, 220ms for drawers; everything honors
-  `prefers-reduced-motion` (opacity-only fallbacks). No looping or attention-seeking animation.
+  `prefers-reduced-motion`. No looping or attention-seeking animation. *(Revised at the Phase 10
+  visual pass:)* entrances are **transform-only, never opacity** — text that fades cannot be
+  guaranteed to meet contrast while in flight, and a scroll-driven fade can park text at partial
+  opacity indefinitely if the reader stops mid-range (caught by the axe gate, see
+  `../progress/phase-10.md`). Opacity animation is allowed only on decorative, `aria-hidden`
+  elements. Scroll reveals use CSS `animation-timeline: view()` so a browser without scroll
+  timelines simply renders the content — there is no JS-hidden state that can get stuck.
+- **Hover states never use `opacity`** on a filled control: dimming blends the label into its
+  background (white-on-red fell to 4.35:1). Use a solid hover shade — `--status-risk-hover`,
+  `--accent-primary-hover`.
+- **Signature — the horizon.** A 2px rule with a tick at its origin, drawn once beneath every page
+  title, fading out to the right. FinPilot's features already behave like flight instruments
+  (safe-to-spend is fuel remaining, the forecast band is a path with an uncertainty cone, net
+  position is altitude); the horizon is that idea reduced to one line, and it is the only piece of
+  ornament in the system.
 - **Icons:** Lucide, single library, 16/20/24px grid, 1.5px stroke. **No emoji as UI icons.**
 - **Focus:** always-visible 2px ring token with offset; never removed, never color-only.
 

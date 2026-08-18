@@ -257,7 +257,7 @@ export default async function OverviewPage({
                         {currency} accounts (currencies are never combined)
                       </p>
                     ) : null}
-                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
                       <StatTile label="Liquid" detail="Cash, bank & e-wallets">
                         <AmountText
                           amountMinor={netPosition[currency].liquidMinor}
@@ -347,7 +347,7 @@ export default async function OverviewPage({
                           {currency} activity
                         </p>
                       ) : null}
-                      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                      <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <StatTile
                           label="Income"
                           detail={comparisonText(t9?.incomeMinor ?? 0, p9?.incomeMinor ?? 0)}

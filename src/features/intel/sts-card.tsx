@@ -29,21 +29,19 @@ export function SafeToSpendCard({ view }: { view: StsView }) {
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-[13px] font-medium uppercase tracking-wide text-ink-muted">
-              Safe to spend
-            </h2>
+            <h2 className="eyebrow">Safe to spend</h2>
             <p
               className={cn(
-                "num text-[32px] font-semibold leading-[38px]",
+                "num-readout text-[38px] font-medium leading-[46px]",
                 negative ? "text-risk" : "text-ink",
               )}
             >
               <AmountText amountMinor={result.expected.todayMinor} currency={currency} />
-              <span className="ml-2 text-[15px] font-normal text-ink-muted">today</span>
+              <span className="ml-2 font-sans text-[15px] font-normal text-ink-muted">today</span>
             </p>
           </div>
           <div className="text-right">
-            <p className="num text-[19px] font-semibold text-ink">
+            <p className="num-readout text-[19px] font-medium text-ink">
               <AmountText amountMinor={result.expected.untilPaydayMinor} currency={currency} />
             </p>
             <p className="text-[12.5px] text-ink-muted">
