@@ -12,8 +12,11 @@ export const metadata: Metadata = { title: t("settings.data.title") };
 export default async function DataSettingsPage() {
   await requireUser();
   return (
-    <div className="flex flex-col gap-8">
-      <section aria-labelledby="export-heading" className="flex flex-col gap-2">
+    <div className="grid gap-6 lg:grid-cols-2">
+      <section
+        aria-labelledby="export-heading"
+        className="flex flex-col gap-2 rounded-card border border-hairline bg-card p-5"
+      >
         <h2 id="export-heading" className="text-[19px] font-semibold text-ink">
           Export your data
         </h2>
@@ -33,7 +36,10 @@ export default async function DataSettingsPage() {
         <ExportCard />
       </section>
 
-      <section aria-labelledby="retention-heading" className="flex flex-col gap-2">
+      <section
+        aria-labelledby="retention-heading"
+        className="flex flex-col gap-2 rounded-card border border-hairline bg-card p-5"
+      >
         <h2 id="retention-heading" className="text-[19px] font-semibold text-ink">
           Data retention
         </h2>
@@ -47,7 +53,10 @@ export default async function DataSettingsPage() {
         </Banner>
       </section>
 
-      <section aria-labelledby="deletion-heading" className="flex flex-col gap-2">
+      <section
+        aria-labelledby="deletion-heading"
+        className="flex flex-col gap-2 rounded-card border border-risk-soft bg-card p-5 lg:col-span-2"
+      >
         <h2 id="deletion-heading" className="text-[19px] font-semibold text-ink">
           Delete your account
         </h2>

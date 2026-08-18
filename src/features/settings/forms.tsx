@@ -52,15 +52,17 @@ export function ProfileForm({ displayName, email }: { displayName: string; email
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <StateBanner state={state} />
-      <FormField
-        label={t("auth.email.label")}
-        help="Email changes arrive with verified email (post-V1)."
-      >
-        <Input value={email} disabled />
-      </FormField>
-      <FormField label="Display name" errors={errors.displayName}>
-        <Input name="displayName" defaultValue={displayName} autoComplete="name" />
-      </FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField
+          label={t("auth.email.label")}
+          help="Email changes arrive with verified email (post-V1)."
+        >
+          <Input value={email} disabled />
+        </FormField>
+        <FormField label="Display name" errors={errors.displayName}>
+          <Input name="displayName" defaultValue={displayName} autoComplete="name" />
+        </FormField>
+      </div>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : t("common.save")}
       </Button>
@@ -74,16 +76,18 @@ export function ChangePasswordForm() {
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <StateBanner state={state} />
-      <FormField label="Current password" errors={errors.currentPassword}>
-        <PasswordInput name="currentPassword" autoComplete="current-password" required />
-      </FormField>
-      <FormField
-        label={t("auth.password.new.label")}
-        help={t("auth.password.requirements")}
-        errors={errors.newPassword}
-      >
-        <PasswordInput name="newPassword" autoComplete="new-password" required />
-      </FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label="Current password" errors={errors.currentPassword}>
+          <PasswordInput name="currentPassword" autoComplete="current-password" required />
+        </FormField>
+        <FormField
+          label={t("auth.password.new.label")}
+          help={t("auth.password.requirements")}
+          errors={errors.newPassword}
+        >
+          <PasswordInput name="newPassword" autoComplete="new-password" required />
+        </FormField>
+      </div>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : "Change password"}
       </Button>
@@ -110,36 +114,38 @@ export function PreferencesForm({
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
       <StateBanner state={state} />
-      <FormField label="Language" help="ms-MY and zh-MY arrive post-V1." errors={errors.locale}>
-        <Select name="locale" defaultValue={locale}>
-          <option value="en-MY">English (Malaysia)</option>
-        </Select>
-      </FormField>
-      <FormField
-        label="Currency"
-        help="Multi-currency conversion is a future feature."
-        errors={errors.currency}
-      >
-        <Select name="currency" defaultValue={currency}>
-          <option value="MYR">Malaysian Ringgit (RM)</option>
-        </Select>
-      </FormField>
-      <FormField label="Timezone" errors={errors.timezone}>
-        <Select name="timezone" defaultValue={timezone}>
-          {TIMEZONES.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz}
-            </option>
-          ))}
-        </Select>
-      </FormField>
-      <FormField label={t("theme.toggle")} errors={errors.theme}>
-        <Select name="theme" defaultValue={theme}>
-          <option value="system">{t("theme.system")}</option>
-          <option value="light">{t("theme.light")}</option>
-          <option value="dark">{t("theme.dark")}</option>
-        </Select>
-      </FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label="Language" help="ms-MY and zh-MY arrive post-V1." errors={errors.locale}>
+          <Select name="locale" defaultValue={locale}>
+            <option value="en-MY">English (Malaysia)</option>
+          </Select>
+        </FormField>
+        <FormField
+          label="Currency"
+          help="Multi-currency conversion is a future feature."
+          errors={errors.currency}
+        >
+          <Select name="currency" defaultValue={currency}>
+            <option value="MYR">Malaysian Ringgit (RM)</option>
+          </Select>
+        </FormField>
+        <FormField label="Timezone" errors={errors.timezone}>
+          <Select name="timezone" defaultValue={timezone}>
+            {TIMEZONES.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+        <FormField label={t("theme.toggle")} errors={errors.theme}>
+          <Select name="theme" defaultValue={theme}>
+            <option value="system">{t("theme.system")}</option>
+            <option value="light">{t("theme.light")}</option>
+            <option value="dark">{t("theme.dark")}</option>
+          </Select>
+        </FormField>
+      </div>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : t("common.save")}
       </Button>
@@ -203,27 +209,37 @@ export function NotificationsForm({
         quiet hours. Email delivery arrives post-V1 — the digest setting is stored and honored then.
       </Banner>
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-[13px] font-medium text-ink-secondary">Alert types</legend>
-        {NOTIFICATION_TYPE_OPTIONS.map(([key, label]) => (
-          <label key={key} className="flex items-center gap-2 text-[13px] text-ink">
-            <input
-              type="checkbox"
-              name={`type_${key}`}
-              defaultChecked={types[key] !== false}
-              className="h-4 w-4 accent-[var(--accent-primary)]"
-            />
-            {label}
-          </label>
-        ))}
+        <legend className="mb-1 text-[13px] font-medium text-ink-secondary">Alert types</legend>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {NOTIFICATION_TYPE_OPTIONS.map(([key, label]) => (
+            <label key={key} className="flex items-start gap-2 text-[13px] text-ink">
+              <input
+                type="checkbox"
+                name={`type_${key}`}
+                defaultChecked={types[key] !== false}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent-primary)]"
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       </fieldset>
-      <FormField
-        label="Large-bill threshold"
-        help="Bills at or above this amount get an individual heads-up (default RM 500)."
-        errors={errors.largeBill}
-      >
-        <Input name="largeBill" inputMode="decimal" defaultValue={largeBill} className="num" />
-      </FormField>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FormField
+          label="Large-bill threshold"
+          help="Bills at or above this amount get an individual heads-up (default RM 500)."
+          errors={errors.largeBill}
+        >
+          <Input name="largeBill" inputMode="decimal" defaultValue={largeBill} className="num" />
+        </FormField>
+        <FormField label="Digest frequency" errors={errors.digestFrequency}>
+          <Select name="digestFrequency" defaultValue={digestFrequency}>
+            <option value="off">Off</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </Select>
+        </FormField>
         <FormField label="Quiet hours start" errors={errors.quietHoursStart}>
           <Input name="quietHoursStart" type="time" defaultValue={quietHoursStart} />
         </FormField>
@@ -231,14 +247,6 @@ export function NotificationsForm({
           <Input name="quietHoursEnd" type="time" defaultValue={quietHoursEnd} />
         </FormField>
       </div>
-      <FormField label="Digest frequency" errors={errors.digestFrequency}>
-        <Select name="digestFrequency" defaultValue={digestFrequency}>
-          <option value="off">Off</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </Select>
-      </FormField>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? t("common.loading") : t("common.save")}
       </Button>
