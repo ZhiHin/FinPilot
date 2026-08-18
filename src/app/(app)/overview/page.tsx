@@ -213,11 +213,11 @@ export default async function OverviewPage({
         ) : (
           <>
             {/* ---- Phase 7: Safe-to-Spend + the top insight ---- */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
               {stsRes?.ok ? <SafeToSpendCard view={stsRes.data} /> : null}
               {topInsight ? (
-                <Card>
-                  <CardContent className="flex flex-col gap-2">
+                <Card className="h-full">
+                  <CardContent className="flex h-full flex-col gap-2">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="text-[13px] font-medium uppercase tracking-wide text-ink-muted">
                         Top insight
@@ -234,7 +234,7 @@ export default async function OverviewPage({
                     <p className="text-[13px] text-ink-secondary">{topInsight.body}</p>
                     <Link
                       href="/insights"
-                      className="text-[13px] font-medium text-accent underline underline-offset-2"
+                      className="mt-auto pt-1 text-[13px] font-medium text-accent underline underline-offset-2"
                     >
                       See the evidence
                     </Link>

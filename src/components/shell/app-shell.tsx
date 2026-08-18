@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { SpotlightRoot } from "@/components/motion/spotlight-root";
 import { cn } from "@/lib/cn";
 
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 import { CommandPalette } from "./command-palette";
+import { Dock } from "./dock";
 
 export interface NavItem {
   href: string;
@@ -77,9 +79,11 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-page">
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-hairline bg-card px-3 py-4 lg:flex">
-        <Link href="/overview" className="press mb-6 flex items-center gap-2.5 px-3">
+      <SpotlightRoot />
+
+      {/* Header — brand lives here now that there is no sidebar to hold it. */}
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-hairline bg-card/80 px-4 backdrop-blur-xl sm:px-6">
+        <Link href="/overview" className="press flex items-center gap-2.5">
           <span
             aria-hidden
             className="grid h-8 w-8 place-items-center rounded-control bg-accent text-[13px] font-bold text-on-accent"
@@ -90,40 +94,27 @@ export function AppShell({
             FinPilot
           </span>
         </Link>
-        <nav aria-label="Primary" className="flex flex-col gap-0.5">
-          {navPrimary.map((item) => navLink(item))}
-        </nav>
-        <div className="my-4 border-t border-hairline" />
-        <nav aria-label="Secondary" className="flex flex-col gap-0.5">
-          {navSecondary.map((item) => navLink(item))}
-        </nav>
-        <div className="mt-auto px-3 pt-4 text-[11.5px] text-ink-muted">
-          Educational information, not financial advice.
-        </div>
-      </aside>
-
-      {/* Header */}
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-hairline bg-card px-4 lg:pl-64">
-        <span className="text-[15px] font-semibold text-ink lg:hidden">FinPilot</span>
+        {/* Search lives in the dock beside the destinations; the topbar keeps
+            only the controls that have nowhere else to be. */}
         <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setPaletteOpen(true)}
-            className="hidden items-center gap-2 rounded-control border border-hairline px-3 py-1.5 text-[13px] text-ink-muted hover:text-ink sm:flex"
-          >
-            <Command aria-hidden className="h-3.5 w-3.5" />
-            <span>Search &amp; actions</span>
-            <kbd className="rounded bg-sunken px-1.5 text-[11px]">Ctrl K</kbd>
-          </button>
           {headerControls}
           {userMenu}
         </div>
       </header>
 
-      {/* Content */}
-      <main id="main-content" className="px-4 pb-24 pt-6 sm:px-6 lg:pb-10 lg:pl-[17rem] lg:pr-8">
-        <div className="mx-auto w-full max-w-[1200px]">{children}</div>
+      {/* Content — full width, with room at the bottom for the dock. */}
+      <main id="main-content" className="px-4 pb-24 pt-6 sm:px-6 lg:pb-32 lg:px-8">
+        <div className="mx-auto w-full max-w-[1400px]">{children}</div>
       </main>
+
+      {/* Desktop primary navigation */}
+      <Dock
+        items={navPrimary}
+        onSearch={() => setPaletteOpen(true)}
+        searchIcon={<Command aria-hidden />}
+        onMore={() => setMoreOpen(true)}
+        moreIcon={<Menu aria-hidden />}
+      />
 
       {/* Mobile bottom navigation: 3 primary + command + More */}
       <nav
@@ -160,8 +151,16 @@ export function AppShell({
           <DialogTitle className="mb-3 text-[15px] font-semibold text-ink">
             All destinations
           </DialogTitle>
+          {/* On desktop the dock already shows every primary destination, so
+              this menu carries the secondary ones; on mobile it carries both. */}
           <div className="flex flex-col gap-0.5" onClick={() => setMoreOpen(false)}>
-            {[...navPrimary.slice(3), ...navSecondary].map((item) => navLink(item))}
+            <nav aria-label="Secondary" className="flex flex-col gap-0.5">
+              {navSecondary.map((item) => navLink(item))}
+            </nav>
+            <div className="my-2 border-t border-hairline lg:hidden" />
+            <div className="flex flex-col gap-0.5 lg:hidden">
+              {navPrimary.slice(3).map((item) => navLink(item))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

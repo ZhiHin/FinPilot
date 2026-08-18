@@ -7,22 +7,37 @@ test.describe("responsive application shell", () => {
     await signIn(page, TEST_USER_B.email, TEST_USER_B.password);
   });
 
-  test("desktop 1440 and 1024: sidebar visible, bottom nav hidden", async ({ page }) => {
+  // Primary navigation is the floating dock, not a sidebar: content keeps the
+  // full width of the screen, which matters most on the wide data tables.
+  test("desktop 1440 and 1024: dock visible, bottom nav hidden", async ({ page }) => {
     for (const width of [1440, 1024]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(
-        page.locator("aside").getByRole("navigation", { name: "Primary" }),
-      ).toBeVisible();
+      const dock = page.getByRole("navigation", { name: "Primary" });
+      await expect(dock).toBeVisible();
+      await expect(dock.getByRole("link", { name: "Overview" })).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Quick navigation" })).toBeHidden();
+      // Nothing reserves a left column any more.
+      await expect(page.locator("aside")).toHaveCount(0);
     }
   });
 
-  test("mobile 768 and 360: bottom nav visible, sidebar hidden", async ({ page }) => {
+  test("mobile 768 and 360: bottom nav visible, dock hidden", async ({ page }) => {
     for (const width of [768, 360]) {
       await page.setViewportSize({ width, height: 800 });
       await expect(page.getByRole("navigation", { name: "Quick navigation" })).toBeVisible();
-      await expect(page.locator("aside").getByRole("navigation", { name: "Primary" })).toBeHidden();
+      await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
     }
+  });
+
+  test("the dock reaches every primary destination, and More covers the rest", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const dock = page.getByRole("navigation", { name: "Primary" });
+    await dock.getByRole("link", { name: "Budget" }).click();
+    await expect(page).toHaveURL(/\/budget/);
+
+    await dock.getByRole("button", { name: "More" }).click();
+    await page.getByRole("dialog").getByRole("link", { name: "Settings" }).click();
+    await expect(page).toHaveURL(/\/settings/);
   });
 
   test("every destination is real — no placeholders remain", async ({ page }) => {

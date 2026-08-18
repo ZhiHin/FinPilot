@@ -225,6 +225,166 @@ h3,
   }
 }
 
+/* --- Dark regions ------------------------------------------------------- */
+/* These redefine the semantic tokens for their own subtree, so every child
+   component (which only ever consumes tokens) becomes light-on-dark without a
+   single component edit. Values are contrast-checked against the region's own
+   background, not the page's. */
+
+.rail,
+.panel {
+  --surface-card: #0c1320;
+  --surface-raised: #131c2c;
+  --surface-sunken: #080e18;
+  --border-hairline: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text-primary: #eaf0f8;
+  --text-secondary: #aab7cc;
+  --text-muted: #8b9ab2;
+  --accent-primary: #8fc7ea;
+  --accent-primary-hover: #a6d4f1;
+  --accent-primary-soft: rgba(143, 199, 234, 0.16);
+  --text-on-accent: #08111d;
+  --focus-ring: #8fc7ea;
+  color: var(--text-primary);
+}
+
+/* The dock: navigation as a floating pill rather than a column, so content
+   keeps the full width of the screen. Dark glass in both themes. */
+.dock {
+  --surface-card: #0c1320;
+  --border-hairline: rgba(255, 255, 255, 0.12);
+  --text-primary: #eaf0f8;
+  --text-secondary: #aab7cc;
+  --accent-primary: #8fc7ea;
+  --accent-primary-soft: rgba(143, 199, 234, 0.18);
+  background: linear-gradient(180deg, rgba(20, 30, 46, 0.86), rgba(9, 15, 25, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 18px 40px -12px rgba(4, 10, 20, 0.55);
+}
+
+/* Only the glyph magnifies. Scaling the whole cell would drag the label with
+   it and overlap the neighbours; the label has to stay put to stay readable. */
+.dock-glyph {
+  display: grid;
+  place-items: center;
+  transform: translateY(var(--dock-lift, 0)) scale(var(--dock-scale, 1));
+  transform-origin: bottom center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dock-glyph {
+    transition: transform 180ms var(--ease-out);
+  }
+}
+.dock-cell {
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+/* The rail: one dark column that frames the light content beside it. */
+.rail {
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(143, 199, 234, 0.13), transparent 60%),
+    linear-gradient(180deg, #0e1725 0%, #0a1018 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* The flight deck: the panel the most important number lives on. */
+.panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    radial-gradient(90% 120% at 8% 0%, rgba(143, 199, 234, 0.16), transparent 55%),
+    radial-gradient(70% 100% at 100% 100%, rgba(96, 165, 250, 0.1), transparent 60%),
+    linear-gradient(160deg, #101b2b 0%, #0a111c 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 20px 50px -20px rgba(4, 10, 20, 0.65);
+}
+
+/* A single sheen crossing the glass as the deck comes up. Runs once. Its own
+   element rather than a pseudo-element, because the panel is also a spotlight
+   surface and ::before is already spoken for. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sheen {
+    opacity: 1;
+    background: linear-gradient(
+      105deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.07) 50%,
+      transparent 62%
+    );
+    animation: sheen 1500ms var(--ease-out) 300ms 1 both;
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Faint scan lines — instrument glass, masked so it never fights the text. */
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.028) 0px,
+    rgba(255, 255, 255, 0.028) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  mask-image: radial-gradient(120% 80% at 20% 0%, black, transparent 75%);
+}
+
+/* --- Cursor spotlight ---------------------------------------------------- */
+/* One delegated pointer listener writes --mx/--my onto whichever element is
+   hovered (components/motion/spotlight-root.tsx). */
+.spotlight {
+  position: relative;
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+  background: radial-gradient(
+    16rem circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--accent-primary) 16%, transparent),
+    transparent 62%
+  );
+}
+@media (prefers-reduced-motion: no-preference) {
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+}
+
+/* Depth: cards read as surfaces above the page, not outlines drawn on it. */
+.elevate {
+  box-shadow:
+    0 1px 2px rgba(16, 27, 43, 0.04),
+    0 8px 24px -12px rgba(16, 27, 43, 0.16);
+}
+
 /* Ambient cursor glow, used only on the signed-out screens. */
 .cursor-glow {
   position: absolute;

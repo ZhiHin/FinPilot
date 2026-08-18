@@ -25,31 +25,36 @@ export function SafeToSpendCard({ view }: { view: StsView }) {
   );
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
+    <Card className="panel">
+      <div className="sheen" aria-hidden />
+      <CardContent className="relative flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div className="min-w-0 flex-1">
             <h2 className="eyebrow">Safe to spend</h2>
             <p
               className={cn(
-                "num-readout text-[38px] font-medium leading-[46px]",
+                "num-readout mt-1.5 text-[clamp(2.5rem,4.4vw,3.5rem)] font-medium leading-[1.02]",
                 negative ? "text-risk" : "text-ink",
               )}
             >
               <AmountText amountMinor={result.expected.todayMinor} currency={currency} />
-              <span className="ml-2 font-sans text-[15px] font-normal text-ink-muted">today</span>
+            </p>
+            <p className="mt-2 text-[13px] text-ink-secondary">
+              available today, after everything already committed
             </p>
           </div>
-          <div className="text-right">
-            <p className="num-readout text-[19px] font-medium text-ink">
+          <div className="shrink-0 border-hairline sm:border-l sm:pl-6 sm:text-right">
+            <p className="num-readout text-[22px] font-medium text-ink">
               <AmountText amountMinor={result.expected.untilPaydayMinor} currency={currency} />
             </p>
-            <p className="text-[12.5px] text-ink-muted">
-              until {view.hasPaydayPattern ? "payday" : "month end"}{" "}
+            <p className="mt-0.5 text-[12.5px] text-ink-muted">
+              until {view.hasPaydayPattern ? "payday" : "month end"}
+              <br />
               {formatIsoDate(view.payday, "en-MY")}
             </p>
           </div>
         </div>
+        <div className="horizon animate-horizon" aria-hidden />
 
         {result.isRange ? (
           <p className="text-[12.5px] text-ink-secondary">
